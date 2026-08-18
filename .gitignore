@@ -1,0 +1,49 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Environments and local configuration
+.venv/
+.venv-dedal/
+.env
+.env.*
+!.env.example
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Editors and operating systems
+.DS_Store
+.idea/
+.vscode/
+
+# Local-only research records and literature
+Notes.docx
+*.pdf
+docs/DECISIONS.md
+docs/MEETING_NOTES.md
+docs/PROJECT_LOG.md
+docs/PROJECT_PLAN.md
+references/
+
+# Generated project artefacts
+data/raw/*
+data/external/*
+data/interim/*
+data/processed/*
+!data/**/.gitkeep
+!data/**/README.md
+outputs/figures/*
+outputs/tables/*
+outputs/graphs/*
+!outputs/**/.gitkeep
+!outputs/**/README.md
+
+# Downloaded third-party research code and pretrained model artefacts
+external/google-research/
+models/dedal/

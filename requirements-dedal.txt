@@ -1,0 +1,9 @@
+# Optional isolated environment for pretrained DEDAL inference on Python 3.11.
+# Install this file into .venv-dedal, not the main .venv.
+setuptools<81
+gin-config==0.5.0
+numpy<2
+protobuf<5
+tensorflow-macos==2.15.0
+tensorflow-hub==0.15.0
+tensorflow-probability==0.23.0
