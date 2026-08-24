@@ -24,11 +24,9 @@ htmlcov/
 
 # Local-only research records and literature
 Notes.docx
+~$*.docx
 *.pdf
-docs/DECISIONS.md
-docs/MEETING_NOTES.md
-docs/PROJECT_LOG.md
-docs/PROJECT_PLAN.md
+docs/PROJECT.md
 references/
 
 # Generated project artefacts

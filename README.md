@@ -79,13 +79,76 @@ python -m pytest
 See `docs/BLAST.md` and `docs/DEDAL.md` for the optional local methods and their
 recorded outputs.
 
+## Documentation
+
+- `docs/PROJECT.md`: the research question, scope, accepted decisions, current
+  evidence, progress, and next actions. This is the only project-status record.
+- `docs/BIOPYTHON_ALIGNMENT.md`, `docs/BLAST.md`, and `docs/DEDAL.md`:
+  method-specific setup and parameter guides.
+- `data/README.md`, `notebooks/README.md`, and `outputs/README.md`: concise
+  guides for those folders.
+- `references/`: BibTeX records and the literature tracker.
+
+The original proposal PDF and `Notes.docx` are retained unchanged as source
+documents. Local research records are intentionally not published to GitHub.
+
+## Prepare the pilot dataset
+
+The first real-data experiment uses 12 reviewed protein-domain sequences from
+the curated Pfam `PF00042` globin seed alignment. It deliberately includes
+three myoglobins, three alpha-like haemoglobins, three beta-like haemoglobins,
+and three more divergent globins so that the three methods have both easier and
+harder relationships to compare.
+
+With the main environment active, run:
+
+```bash
+python scripts/prepare_pfam_globin_pilot.py
+```
+
+The first run downloads official Pfam/InterPro and UniProt records; later runs
+reuse those exact recorded sources. The generated FASTA, metadata table, and
+provenance manifest are stored under
+`data/processed/pfam_pf00042_globin_pilot/` and are intentionally ignored by
+Git. See `data/README.md` for the exact selection and recorded versions.
+
+## Run the complete PF00042 pipeline
+
+The second notebook runs the protein set through Biopython, BLAST, and DEDAL,
+records configurable correlation checks, and writes a separate graph for each
+method under explicit graph settings.
+
+Generate the quick Biopython and BLAST results with:
+
+```bash
+python scripts/run_pf00042_correlation.py --methods biopython blast --threads 4
+```
+
+Add the slower local DEDAL results when its optional environment is ready:
+
+```bash
+python scripts/run_pf00042_correlation.py --methods dedal
+```
+
+Completed outputs are reused, so the two commands can be run separately. Then
+open `notebooks/02_pf00042_complete_pipeline.ipynb` and run all cells. The
+method, graph threshold rule, graph threshold, and correlation-check thresholds
+are visible configuration values near the top. The included `top_n=13` graphs
+only verify the pipeline; scientific settings remain unchosen until data
+exploration.
+
+Open `notebooks/03_pf00042_data_exploration.ipynb` afterward to investigate
+scores, missing BLAST hits, correlations, and disagreements before deciding
+those thresholds.
+
 ## Repository map
 
 ```text
 data/                         Local data, separated by processing stage
-docs/                         Public method setup and usage guides
+docs/                         Project overview and method-specific guides
 notebooks/                    Numbered, reproducible analyses
 outputs/                      Generated figures, tables, and graph files
+scripts/                      Reproducible data-preparation and method workers
 src/protein_alignment_networks/
                               Reusable, tested Python code
 tests/                        Automated correctness checks
