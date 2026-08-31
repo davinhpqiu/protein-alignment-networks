@@ -19,7 +19,7 @@ from protein_alignment_networks import (
 )
 
 METHODS = ("biopython", "blast", "dedal")
-RULES = ("absolute", "percentile", "top_n")
+RULES = ("absolute", "percentile", "top_k", "top_n")
 INDEPENDENT_SCORE_COLUMNS = {
     "biopython_score",
     "blast_bit_score",
@@ -44,9 +44,9 @@ def parse_graph_spec(value: str) -> tuple[str, str, float]:
         threshold = float(raw_threshold)
     except ValueError as error:
         raise argparse.ArgumentTypeError("graph threshold must be numeric") from error
-    if rule == "top_n":
+    if rule in {"top_k", "top_n"}:
         if not threshold.is_integer():
-            raise argparse.ArgumentTypeError("top_n threshold must be an integer")
+            raise argparse.ArgumentTypeError(f"{rule} threshold must be an integer")
         threshold = int(threshold)
     return method, rule, threshold
 

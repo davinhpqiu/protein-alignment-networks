@@ -1,4 +1,4 @@
-"""Run the pair-level PF00042 score-correlation experiment."""
+"""Run pair-level alignment scoring for a prepared protein collection."""
 
 from __future__ import annotations
 
@@ -221,6 +221,10 @@ def parse_arguments() -> argparse.Namespace:
         default=root / "outputs/tables/pfam_pf00042_correlation",
     )
     parser.add_argument(
+        "--experiment-name",
+        help="descriptive name recorded in the run manifest",
+    )
+    parser.add_argument(
         "--methods",
         nargs="+",
         choices=METHODS,
@@ -289,8 +293,11 @@ def main() -> None:
         )
     )
     cumulative_runtimes.update(runtimes)
+    dataset_record = json.loads(arguments.dataset_manifest.read_text())
+    dataset_name = dataset_record.get("dataset", arguments.dataset_manifest.stem)
     manifest = {
-        "experiment": "PF00042 pair-level score correlation",
+        "experiment": arguments.experiment_name
+        or f"{dataset_name} pair-level alignment scores",
         "updated_at_utc": datetime.now(UTC).isoformat(),
         "dataset_manifest": recorded_path(arguments.dataset_manifest, project_root),
         "dataset_manifest_sha256": sha256_file(arguments.dataset_manifest),

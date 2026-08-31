@@ -15,7 +15,7 @@ METHOD_SCORE_COLUMNS = {
     "blast": "blast_bit_score",
     "dedal": "dedal_sw_score",
 }
-THRESHOLD_RULES = {"absolute", "percentile", "top_n"}
+THRESHOLD_RULES = {"absolute", "percentile", "target_density", "top_k", "top_n"}
 
 
 def score_matrix_to_graph(
@@ -64,8 +64,12 @@ def build_similarity_graph(
 
     ``threshold_rule`` may be ``absolute`` (native score at least the supplied
     threshold), ``percentile`` (within-method percentile at least a value in
-    ``[0, 1]``), or ``top_n`` (the strongest exact number of available pairs).
-    Missing method outputs are ineligible edges and are never replaced by zero.
+    ``[0, 1]``), ``target_density`` (the strongest pairs up to an exact fraction
+    of all possible node pairs), ``top_n`` (the strongest exact number of
+    available pairs), or ``top_k`` (the union of each protein's strongest ``k``
+    available pairs). Missing method outputs are ineligible edges and are never
+    replaced by zero. A target-density graph records any edge-count shortfall
+    caused by insufficient available method scores.
     """
 
     identifiers = list(protein_ids)
@@ -100,20 +104,30 @@ def build_similarity_graph(
         raise TypeError(f"score column must be numeric: {score_column}")
 
     available = pairs.loc[pairs[score_column].notna()].copy()
+    possible_pair_count = len(identifiers) * (len(identifiers) - 1) // 2
     selected = _select_edges(
         available,
         score_column=score_column,
         threshold=threshold,
         threshold_rule=threshold_rule,
+        possible_pair_count=possible_pair_count,
     )
 
-    graph = nx.Graph(
-        method=method,
-        score_column=score_column,
-        threshold_rule=threshold_rule,
-        threshold=float(threshold),
-        available_pair_count=len(available),
-    )
+    graph_attributes = {
+        "method": method,
+        "score_column": score_column,
+        "threshold_rule": threshold_rule,
+        "threshold": float(threshold),
+        "available_pair_count": len(available),
+        "possible_pair_count": possible_pair_count,
+    }
+    if threshold_rule == "target_density":
+        target_edge_count = int(np.ceil(float(threshold) * possible_pair_count))
+        graph_attributes["target_edge_count"] = target_edge_count
+        graph_attributes["selection_shortfall"] = max(
+            0, target_edge_count - len(selected)
+        )
+    graph = nx.Graph(**graph_attributes)
     graph.add_nodes_from(identifiers)
     _attach_node_metadata(
         graph,
@@ -149,6 +163,8 @@ def graph_summary(graph: nx.Graph) -> dict[str, float | int | str]:
 
     if graph.is_directed():
         raise ValueError("graph_summary expects an undirected graph")
+    possible_pair_count = int(graph.graph.get("possible_pair_count", 0))
+    available_pair_count = int(graph.graph.get("available_pair_count", 0))
     return {
         "method": str(graph.graph.get("method", "")),
         "threshold_rule": str(graph.graph.get("threshold_rule", "")),
@@ -159,6 +175,15 @@ def graph_summary(graph: nx.Graph) -> dict[str, float | int | str]:
         "connected_components": nx.number_connected_components(graph),
         "density": nx.density(graph),
         "average_clustering": nx.average_clustering(graph),
+        "possible_pairs": possible_pair_count,
+        "available_pairs": available_pair_count,
+        "available_pair_fraction": (
+            available_pair_count / possible_pair_count
+            if possible_pair_count
+            else float("nan")
+        ),
+        "target_edges": int(graph.graph.get("target_edge_count", -1)),
+        "selection_shortfall": int(graph.graph.get("selection_shortfall", 0)),
     }
 
 
@@ -212,6 +237,7 @@ def _select_edges(
     score_column: str,
     threshold: float,
     threshold_rule: str,
+    possible_pair_count: int,
 ) -> pd.DataFrame:
     if threshold_rule == "absolute":
         if not isinstance(threshold, (int, float)) or not np.isfinite(threshold):
@@ -224,6 +250,40 @@ def _select_edges(
             method="average", ascending=True, pct=True
         )
         return available.loc[percentiles >= float(threshold)]
+
+    if threshold_rule == "target_density":
+        if not isinstance(threshold, (int, float)) or not 0.0 <= threshold <= 1.0:
+            raise ValueError("target_density threshold must be between 0 and 1")
+        target_edge_count = int(np.ceil(float(threshold) * possible_pair_count))
+        return available.sort_values(
+            [score_column, "protein_a", "protein_b"],
+            ascending=[False, True, True],
+            kind="stable",
+        ).head(target_edge_count)
+
+    if threshold_rule == "top_k":
+        if not isinstance(threshold, int) or isinstance(threshold, bool):
+            raise TypeError("top_k threshold must be an integer")
+        if threshold < 0:
+            raise ValueError("top_k threshold must be non-negative")
+        ordered = available.sort_values(
+            [score_column, "protein_a", "protein_b"],
+            ascending=[False, True, True],
+            kind="stable",
+        )
+        if threshold == 0 or ordered.empty:
+            return ordered.iloc[0:0]
+        endpoint_a = ordered.assign(_protein=ordered["protein_a"])
+        endpoint_b = ordered.assign(_protein=ordered["protein_b"])
+        endpoint_rows = pd.concat([endpoint_a, endpoint_b]).sort_values(
+            [score_column, "protein_a", "protein_b"],
+            ascending=[False, True, True],
+            kind="stable",
+        )
+        selected_indices = endpoint_rows.groupby("_protein", sort=True).head(
+            threshold
+        ).index.unique()
+        return ordered.loc[ordered.index.isin(selected_indices)]
 
     if not isinstance(threshold, int) or isinstance(threshold, bool):
         raise TypeError("top_n threshold must be an integer")

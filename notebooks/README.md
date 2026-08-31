@@ -7,9 +7,15 @@ Notebooks are numbered in intended reading order:
 - `02_pf00042_complete_pipeline.ipynb`: complete PF00042 pipeline from protein
   set through selectable methods and configurable checks to separate saved
   method graphs.
-- `03_pf00042_data_exploration.ipynb`: score distributions, missing BLAST hits,
-  rank correlations, and pair-level disagreements used to justify later
-  quality and graph thresholds.
+- `03_large_scale_graph_exploration.ipynb`: first a 205-domain controlled Pfam
+  panel, then the 960-domain, 24-family repeated-sampling experiment, then the
+  complete 21,600-graph design. It covers collection composition, graph rules,
+  sparsity, visualization, unsupervised community recovery, family/clan NMI
+  distributions, the score-percentile density artefact, matched edge budgets,
+  the collection-uniqueness audit, and the relative size of each experimental
+  factor. Sections 13 onwards read tables written by
+  `scripts/summarize_resampled_graph_experiment.py`, so run that script first.
+  DEDAL is optional and disabled by default.
 
 The project uses Biopython directly rather than maintaining its own alignment
 algorithm. See `docs/BIOPYTHON_ALIGNMENT.md` for the minimal configuration.

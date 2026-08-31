@@ -10,6 +10,7 @@ from .comparison import (
     spearman_correlations,
 )
 from .dedal import dedal_all_vs_all
+from .evaluation import louvain_partition, partition_agreement
 from .graphs import (
     build_similarity_graph,
     graph_summary,
@@ -19,6 +20,11 @@ from .graphs import (
 from .io import read_fasta, validate_protein_sequence
 from .pipeline import pairwise_score_matrix
 from .quality import assess_score_correlations
+from .sampling import (
+    family_sampling_frame,
+    repeated_balanced_collections,
+    sample_balanced_collection,
+)
 
 __all__ = [
     "add_descending_ranks",
@@ -28,11 +34,16 @@ __all__ = [
     "build_similarity_graph",
     "canonical_pair_index",
     "dedal_all_vs_all",
+    "family_sampling_frame",
     "graph_summary",
+    "louvain_partition",
     "merge_pair_tables",
     "pair_rank_disagreements",
     "pairwise_score_matrix",
+    "partition_agreement",
     "read_fasta",
+    "repeated_balanced_collections",
+    "sample_balanced_collection",
     "save_graph_bundle",
     "score_matrix_to_graph",
     "score_matrix_to_pairs",

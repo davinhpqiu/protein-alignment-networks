@@ -57,7 +57,7 @@ def test_missing_blast_hits_are_ineligible_not_zero(pair_scores):
     assert ("a", "c") not in graph.edges
 
 
-def test_percentile_and_top_n_rules_are_toggleable(pair_scores):
+def test_percentile_target_density_top_n_and_top_k_rules_are_toggleable(pair_scores):
     percentile = build_similarity_graph(
         pair_scores,
         ["a", "b", "c", "d"],
@@ -72,8 +72,41 @@ def test_percentile_and_top_n_rules_are_toggleable(pair_scores):
         threshold=2,
         threshold_rule="top_n",
     )
+    top_k = build_similarity_graph(
+        pair_scores,
+        ["a", "b", "c", "d"],
+        method="dedal",
+        threshold=1,
+        threshold_rule="top_k",
+    )
+    target_density = build_similarity_graph(
+        pair_scores,
+        ["a", "b", "c", "d"],
+        method="dedal",
+        threshold=0.5,
+        threshold_rule="target_density",
+    )
     assert percentile.number_of_edges() == 2
     assert set(top_n.edges) == {("a", "b"), ("b", "c")}
+    assert set(top_k.edges) == {("a", "b"), ("a", "d"), ("b", "c")}
+    assert set(target_density.edges) == {("a", "b"), ("a", "c"), ("b", "c")}
+    assert graph_summary(target_density)["target_edges"] == 3
+    assert not list(nx.isolates(top_k))
+
+
+def test_target_density_records_missing_score_shortfall(pair_scores):
+    graph = build_similarity_graph(
+        pair_scores,
+        ["a", "b", "c", "d"],
+        method="blast",
+        threshold=1.0,
+        threshold_rule="target_density",
+    )
+    summary = graph_summary(graph)
+    assert graph.number_of_edges() == 4
+    assert summary["target_edges"] == 6
+    assert summary["selection_shortfall"] == 2
+    assert summary["available_pair_fraction"] == pytest.approx(4 / 6)
 
 
 def test_node_metadata_is_attached(pair_scores):
