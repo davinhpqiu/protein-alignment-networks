@@ -1,4 +1,10 @@
-"""Run pair-level alignment scoring for a prepared protein collection."""
+"""Run pair-level alignment scoring for a prepared protein collection.
+
+Despite the historical filename, command-line FASTA and output paths make this
+the shared dataset-neutral scoring worker used by both the PF00042 pilot and
+the larger Pfam panels.  It saves all method outputs, the canonical merged pair
+table, rank correlations, and a checksum-rich run manifest for notebook use.
+"""
 
 from __future__ import annotations
 
@@ -26,6 +32,7 @@ from protein_alignment_networks import (
     read_fasta,
     score_matrix_to_pairs,
     spearman_correlations,
+    summarize_blast_directionality,
     summarize_blast_pairs,
 )
 
@@ -240,6 +247,14 @@ def parse_arguments() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def display_path(path: Path) -> Path | str:
+    """Return path relative to the working directory when possible."""
+
+    try:
+        return path.relative_to(Path.cwd())
+    except ValueError:
+        return path
+
 def main() -> None:
     arguments = parse_arguments()
     if arguments.threads < 1:
@@ -271,7 +286,7 @@ def main() -> None:
     for method in arguments.methods:
         destination, runner = runners[method]
         if destination.exists() and not arguments.force:
-            print(f"Reusing {method}: {destination}")
+            print(f"Reusing {method}: {display_path(destination)}")
             continue
         print(f"Running {method}...")
         _result, runtimes[method] = runner()
@@ -283,6 +298,12 @@ def main() -> None:
     completed_methods = [
         method for method, (path, _runner) in runners.items() if path.exists()
     ]
+    blast_directionality = None
+    blast_hsps_path = output_directory / "blast_hsps.tsv"
+    if blast_hsps_path.exists():
+        blast_directionality = summarize_blast_directionality(
+            pd.read_csv(blast_hsps_path, sep="\t")
+        )
     output_files = sorted(
         path for path in output_directory.iterdir() if path.name != "run_manifest.json"
     )
@@ -324,7 +345,9 @@ def main() -> None:
                 "gap_extend": 1,
                 "composition_based_statistics": 2,
                 "evalue_reporting_threshold": 10.0,
+                "max_target_sequences_per_query": len(sequences),
                 "pair_summary": "highest bit score HSP",
+                "directionality_audit": blast_directionality,
             },
             "dedal": {
                 "model": "https://tfhub.dev/google/dedal/3",

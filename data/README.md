@@ -112,7 +112,7 @@ python scripts/prepare_pfam_clan_panel.py
   fixed seeds, selected membership, and selection traces are stored in the
   generated manifests and TSV tables.
 
-The first 50-replicate graph-recovery slice fixes each collection at four
-clans, two families per clan, and 20 domains per family. This separates the
-effect of `top_k` from changes in collection composition; the remaining design
-conditions are generated but have not yet all been evaluated as graphs.
+The first diagnostic slice fixes each collection at four clans, two families
+per clan, and 20 domains per family. The complete factorial design has since
+been evaluated. Notebook 03 loads the manifests and raw result tables to derive
+the realised collection, graph, eligibility, and shortfall counts.

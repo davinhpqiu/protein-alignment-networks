@@ -25,6 +25,23 @@ def test_partition_agreement_is_one_for_the_reference_partition():
     assert agreement.loc["clan_accession", "nmi"] == pytest.approx(1.0)
 
 
+def test_partition_agreement_uses_arithmetic_normalization():
+    metadata = pd.DataFrame(
+        {
+            "node_id": ["a", "b", "c", "d", "e", "f"],
+            "family_accession": ["F1", "F1", "F2", "F2", "F2", "F3"],
+        }
+    )
+    agreement = partition_agreement(
+        {"a": 0, "b": 0, "c": 0, "d": 1, "e": 1, "f": 2},
+        metadata,
+        label_columns=("family_accession",),
+    ).iloc[0]
+
+    assert agreement["nmi"] == pytest.approx(0.6853314789615866)
+    assert agreement["ami"] == pytest.approx(0.41182763103317394)
+
+
 def test_louvain_partition_covers_isolates_and_is_reproducible():
     graph = nx.Graph()
     graph.add_edge("a", "b", score=3.0)

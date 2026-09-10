@@ -1,4 +1,10 @@
-"""Select a reproducible multi-clan Pfam family panel from the current release."""
+"""Select a reproducible multi-clan Pfam family panel from the current release.
+
+The output is the auditable sampling frame used by Notebook 03: selected
+families, a row-level acceptance/rejection trace, and a checksum manifest.  The
+selection is seeded within explicit eligibility constraints; it is not claimed
+to be a uniform sample of Pfam.
+"""
 
 from __future__ import annotations
 

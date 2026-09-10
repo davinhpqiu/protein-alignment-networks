@@ -1,4 +1,13 @@
-"""Build and evaluate graph series for reproducibly sampled Pfam collections."""
+"""Build and evaluate graph series for reproducibly sampled Pfam collections.
+
+Inputs are the saved collection manifest/membership, node metadata, and one
+canonical pair-score table.  For every requested collection-method-rule
+combination, the script builds a graph, infers weighted Louvain communities,
+and saves family/clan NMI and AMI plus structural summaries to
+``graph_recovery_results.tsv``.  The companion
+``summarize_resampled_graph_experiment.py`` turns that raw result table into
+the report-facing summary tables and figures loaded by Notebook 03.
+"""
 
 from __future__ import annotations
 
@@ -260,8 +269,9 @@ def main() -> None:
             "none" if arguments.unweighted_communities else "score"
         ),
         "evaluation": {
-            "primary": "normalized mutual information (NMI)",
-            "secondary": "adjusted mutual information (AMI)",
+            "primary": "adjusted mutual information (AMI)",
+            "secondary": "normalized mutual information (NMI)",
+            "average_method": "arithmetic",
             "reference_labels": ["family_accession", "clan_accession"],
             "labels_used_during_graph_or_community_construction": False,
         },

@@ -1,25 +1,45 @@
 # Notebooks
 
-Notebooks are numbered in intended reading order:
+The notebooks form one narrative, but they have different roles:
 
-- `01_goal_1_pipeline.ipynb`: small end-to-end pipeline using Biopython local
-  alignment with BLOSUM62 and affine gap penalties.
-- `02_pf00042_complete_pipeline.ipynb`: complete PF00042 pipeline from protein
-  set through selectable methods and configurable checks to separate saved
-  method graphs.
-- `03_large_scale_graph_exploration.ipynb`: first a 205-domain controlled Pfam
-  panel, then the 960-domain, 24-family repeated-sampling experiment, then the
-  complete 21,600-graph design. It covers collection composition, graph rules,
-  sparsity, visualization, unsupervised community recovery, family/clan NMI
-  distributions, the score-percentile density artefact, matched edge budgets,
-  the collection-uniqueness audit, and the relative size of each experimental
-  factor. Sections 13 onwards read tables written by
-  `scripts/summarize_resampled_graph_experiment.py`, so run that script first.
-  DEDAL is optional and disabled by default.
+1. `01_goal_1_pipeline.ipynb` is a tiny teaching example. It explains local
+   alignment, an all-pairs score matrix, and the score-to-graph step without
+   making biological claims.
+2. `02_pf00042_complete_pipeline.ipynb` is the complete engineering example.
+   It loads a small curated Pfam globin-domain pilot, combines Biopython,
+   BLAST, and optional DEDAL scores, writes separate method graphs, and shows
+   exactly where the stored pair, graph, quality, runtime, and provenance
+   results live.
+3. `03_large_scale_graph_exploration.ipynb` is the main scientific analysis
+   and can be read independently. Part A develops the analysis on a controlled
+   panel; Part B loads the repeated-sampling experiment, audits the collections,
+   compares graph rules and methods, and derives the report-facing figures and
+   conclusions.
 
-The project uses Biopython directly rather than maintaining its own alignment
-algorithm. See `docs/BIOPYTHON_ALIGNMENT.md` for the minimal configuration.
+Empirical results must not be copied into Markdown. Code cells load the
+authoritative TSV/JSON artifacts under `data/processed/` and `outputs/tables/`,
+perform the analysis, and display the result. Markdown explains the question,
+method, interpretation, limitation, and path to the source artifact. Each
+notebook ends with a provenance map; Notebook 03 also derives a compact
+`headline_results` table from the loaded files.
 
-Keep notebooks reproducible: state their purpose, use relative paths, fix random
-seeds, avoid hidden state, and restart the kernel before running all cells.
-Move reusable code into the package under `src/` and test it there.
+Reusable implementation belongs in `src/protein_alignment_networks/` and is
+tested under `tests/`. Scripts under `scripts/` orchestrate complete recorded
+runs and create the artifacts consumed by the notebooks. In particular:
+
+- `run_pair_scores.py` creates the canonical all-pairs score table;
+- `run_resampled_graph_experiment.py` creates raw graph/community evaluations;
+- `run_score_permutation_null.py` creates the deterministic negative-control
+  evaluations;
+- `summarize_resampled_graph_experiment.py` audits samples and creates summary
+  tables and figures.
+
+Run notebooks from the repository root or the `notebooks/` directory using the
+**Protein Alignment Networks** kernel. Restart the kernel and run all cells in
+order; there should be no hidden state. Notebook 03 expects the completed
+large-panel tables described in the root `README.md`. DEDAL is optional and is
+not regenerated during the scaled experiment.
+
+Scientific citations appear inline and their canonical records are stored in
+`references/references.bib`. The project uses maintained standard alignment
+implementations rather than maintaining its own Smith--Waterman or BLAST code.

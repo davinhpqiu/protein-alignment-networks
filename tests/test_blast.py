@@ -1,13 +1,16 @@
 import shutil
 from pathlib import Path
+from types import SimpleNamespace
 
 import pandas as pd
 import pytest
 
+import protein_alignment_networks.blast as blast_module
 from protein_alignment_networks.blast import (
     BLAST_COLUMNS,
     blastp_all_vs_all,
     parse_blast_tabular,
+    summarize_blast_directionality,
     summarize_blast_pairs,
 )
 
@@ -36,6 +39,43 @@ def test_summary_removes_self_hits():
         columns=BLAST_COLUMNS,
     )
     assert summarize_blast_pairs(hits).empty
+
+
+def test_directionality_summary_counts_pairs_and_defines_relative_spread():
+    rows = [
+        ["a", "b", 10, 20.0, 0.1, 3, 100.0, 3, 0, 0, 0, 1, 3, 1, 3, 3, 3, 100.0],
+        ["b", "a", 10, 18.0, 0.1, 3, 100.0, 3, 0, 0, 0, 1, 3, 1, 3, 3, 3, 100.0],
+        ["a", "c", 10, 12.0, 0.1, 3, 100.0, 3, 0, 0, 0, 1, 3, 1, 3, 3, 3, 100.0],
+        ["a", "a", 10, 30.0, 0.1, 3, 100.0, 3, 0, 0, 0, 1, 3, 1, 3, 3, 3, 100.0],
+    ]
+    summary = summarize_blast_directionality(pd.DataFrame(rows, columns=BLAST_COLUMNS))
+
+    assert summary["hsp_row_count"] == 4
+    assert summary["undirected_pair_count"] == 2
+    assert summary["bidirectional_pair_count"] == 1
+    assert summary["single_direction_pair_count"] == 1
+    assert summary["bidirectional_relative_spread_median"] == pytest.approx(0.1)
+
+
+def test_all_vs_all_sets_target_cap_to_full_sequence_count(monkeypatch):
+    commands = []
+
+    def fake_run(command):
+        commands.append(command)
+        if "-outfmt" in command:
+            Path(command[command.index("-out") + 1]).write_text("")
+        return SimpleNamespace(stdout="")
+
+    monkeypatch.setattr(blast_module, "_run", fake_run)
+    hits = blastp_all_vs_all(
+        {"a": "AAAA", "b": "AAAT", "c": "AATT"},
+        blastp="blastp",
+        makeblastdb="makeblastdb",
+    )
+
+    blast_command = commands[1]
+    assert blast_command[blast_command.index("-max_target_seqs") + 1] == "3"
+    assert hits.empty
 
 
 @pytest.mark.skipif(

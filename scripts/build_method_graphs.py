@@ -19,7 +19,7 @@ from protein_alignment_networks import (
 )
 
 METHODS = ("biopython", "blast", "dedal")
-RULES = ("absolute", "percentile", "top_k", "top_n")
+RULES = ("absolute", "percentile", "target_density", "top_k", "top_n")
 INDEPENDENT_SCORE_COLUMNS = {
     "biopython_score",
     "blast_bit_score",

@@ -52,10 +52,12 @@ If `.venv` is not listed, choose **Enter interpreter path...** and enter:
 <project folder>/.venv/bin/python
 ```
 
-A successful run prints a local-alignment score of `12`, followed later by
-`Nodes: 4` and `Edges: 3`. If VS Code asks to install the Python or Jupyter
-extension, install the official Microsoft extension it names and repeat the
-kernel selection.
+A successful run completes without an exception and displays one alignment,
+the pairwise score table, and the resulting graph. Those values are calculated
+inside the notebook rather than copied into this README, so they remain in sync
+when the example or parameters change. If VS Code asks to install the Python or
+Jupyter extension, install the official Microsoft extension it names and repeat
+the kernel selection.
 
 ### Running the notebook in a browser
 
@@ -81,16 +83,17 @@ recorded outputs.
 
 ## Documentation
 
-- `docs/PROJECT.md`: the research question, scope, accepted decisions, current
-  evidence, progress, and next actions. This is the only project-status record.
+- The numbered notebooks are the public, executable account of the research
+  question, methods, results, and interpretation.
 - `docs/BIOPYTHON_ALIGNMENT.md`, `docs/BLAST.md`, and `docs/DEDAL.md`:
   method-specific setup and parameter guides.
 - `data/README.md`, `notebooks/README.md`, and `outputs/README.md`: concise
   guides for those folders.
-- `references/`: BibTeX records and the literature tracker.
+- `references/references.bib`: the public canonical citation database; local
+  literature-reading notes stay alongside it but are not published.
 
-The original proposal PDF and `Notes.docx` are retained unchanged as source
-documents. Local research records are intentionally not published to GitHub.
+The original proposal, meeting notes, and `docs/PROJECT.md` are retained as
+local research records and intentionally not published to GitHub.
 
 ## Prepare the pilot dataset
 
@@ -143,16 +146,18 @@ as a scientific default.
 
 ## Run the large-scale graph exploration
 
-Open `notebooks/03_large_scale_graph_exploration.ipynb` and run all cells. Part
-A retains the 205-domain, six-family controlled panel used to establish the
-scaled graph workflow. Part B loads the main repeated-sampling experiment: 960
-Pfam seed-domain instances from 24 reproducibly selected families in eight
-clans, 900 balanced sampled collections, and NMI/AMI recovery results after
-unsupervised Louvain community detection. Part C, sections 13 to 17, loads the
-complete design of 21,600 graphs, and covers the score-percentile density
-artefact, matched edge budgets, the collection-uniqueness audit, and the
-relative size of each experimental factor. DEDAL is optional and remains
-disabled by default.
+Open `notebooks/03_large_scale_graph_exploration.ipynb` and run all cells.
+Opening sections define notation, graph-construction rules, and both agreement
+measures, so a reader new to the project can start there.
+
+Part A (A1-A11) covers the 205-domain, six-family controlled panel that
+established the scaled workflow. Part B (B1-B8) covers the repeated-sampling
+experiment: 960 Pfam seed-domain instances from 24 reproducibly selected
+families in eight clans, 900 balanced collections, 21,600 graphs, and NMI/AMI
+recovery after unsupervised Louvain detection. B4 and B5 cover score-percentile
+density mismatch and matched edge budgets, B6 audits sample independence, B7
+compares input effect sizes, and B8 presents the completed distribution and
+NMI-versus-AMI figures. DEDAL stays disabled by default.
 
 The collection can also be prepared independently with:
 
@@ -181,6 +186,16 @@ python scripts/run_pair_scores.py \
   --output-directory outputs/tables/pfam_large_panel_scores \
   --methods biopython blast --threads 8
 ```
+
+The 900 collections come from a factorial design, not from one opaque random
+sample. The generator crosses 3 clan counts (2, 4, 8), 2 family counts per
+clan (2, 3), and 3 domain counts per family (10, 20, 40), producing 18
+composition cells; 50 seeded replicates per cell give `18 × 50 = 900`.
+Within one replicate it samples clans, then families within each selected clan,
+then domains within each selected family, uniformly without replacement. A
+stable hash of the base seed, condition, and replicate number makes every draw
+reproducible. The resulting node set is sampled once and reused for both
+methods and all 12 graph settings, so every graph comparison is paired.
 
 The first recovery slice used 50 fixed-design collections and can be
 regenerated with:
@@ -224,16 +239,17 @@ python scripts/run_resampled_graph_experiment.py \
 ```
 
 The bare `--top-k` in the second command clears the default `1 2 5 10`, so
-that run produces target-density graphs only. The `target_density` rule gives
-both methods the same edge budget on the same nodes. Equal score percentiles do not: BLAST's
-no-hit pairs shrink its available-score pool, so the same nominal percentile
-produces a much sparser BLAST graph. See `docs/PROJECT.md` for the effect this
-has on the results.
+that run produces target-density graphs only. The `target_density` rule requests
+the same edge budget on the same nodes and records any method that cannot supply
+it. Equal score percentiles do not match budgets: BLAST's no-hit pairs shrink
+its available-score pool, so the same nominal percentile can produce a much
+sparser graph. Notebook 03 loads the shortfall audit and separates fully matched
+comparisons from the coverage-shortfall stress test.
 
 Then derive the summary tables and figures:
 
 ```bash
-MPLCONFIGDIR=/tmp/mplcache python scripts/summarize_resampled_graph_experiment.py \
+MPLBACKEND=Agg MPLCONFIGDIR=/tmp/mplcache python scripts/summarize_resampled_graph_experiment.py \
   outputs/tables/pfam_large_panel_graph_recovery_full/graph_recovery_results.tsv \
   outputs/tables/pfam_large_panel_graph_recovery_matched_density/graph_recovery_results.tsv \
   data/processed/pfam_large_panel/resampling/collection_manifest.tsv \
@@ -242,21 +258,63 @@ MPLCONFIGDIR=/tmp/mplcache python scripts/summarize_resampled_graph_experiment.p
   outputs/figures/pfam_large_panel_full
 ```
 
-Setting `MPLCONFIGDIR` to a writable folder matters: Matplotlib can hang while
-building its font cache in a protected macOS location, which silently produces
-tables but no figures. Parts B and C of Notebook 03 read the tables this script
-writes, so run it before the notebook.
+Setting the non-interactive backend and `MPLCONFIGDIR` matters: Matplotlib can
+otherwise hang while building its font cache or opening a macOS display,
+silently producing tables but no figures. Part B of Notebook 03 reads the
+tables this script writes, so run it before the notebook. Optional arguments
+`--reference-clans`, `--reference-families-per-clan`, and
+`--reference-domains-per-family` change the reference cell in the all-rule and
+NMI-versus-AMI figures.
 
-The family selector saves every inspected candidate and rejection. The
-collection generator saves every selected clan, family, domain, and random
-seed. Pfam labels are used to balance the sampled input, but graph construction
-and community detection do not receive them; labels are revealed only for NMI
-and AMI evaluation.
+The two focused report sensitivity checks are reproducible with:
+
+```bash
+python scripts/run_resampled_graph_experiment.py \
+  data/processed/pfam_large_panel/resampling/collection_manifest.tsv \
+  data/processed/pfam_large_panel/resampling/collection_membership.tsv \
+  data/processed/pfam_large_panel/pfam_large_panel_metadata.tsv \
+  outputs/tables/pfam_large_panel_scores/paired_scores.tsv \
+  outputs/tables/pfam_large_panel_graph_recovery_unweighted_reference \
+  --methods biopython blast --top-k 5 --target-densities 0.02 \
+  --clans 4 --families-per-clan 2 --domains-per-family 20 \
+  --unweighted-communities
+
+python scripts/run_score_permutation_null.py \
+  data/processed/pfam_large_panel/resampling/collection_manifest.tsv \
+  data/processed/pfam_large_panel/resampling/collection_membership.tsv \
+  data/processed/pfam_large_panel/pfam_large_panel_metadata.tsv \
+  outputs/tables/pfam_large_panel_scores/paired_scores.tsv \
+  outputs/tables/pfam_large_panel_score_permutation_null \
+  --method biopython --top-k 5 --target-densities 0.02 \
+  --clans 4 --families-per-clan 2 --domains-per-family 20 \
+  --max-collections 20 --seed 20260908
+```
+
+The first reruns a fixed reference composition without score weights during
+Louvain detection. The second shuffles finite Biopython scores among pair
+identities within each collection, preserving the score distribution while
+destroying pairwise sequence signal. Notebook 03 loads both raw result tables
+and computes the comparisons.
+
+The family selector saves every inspected candidate and rejection. The master
+panel's 40 domains per family are then chosen deterministically for sequence
+diversity; only the repeated collection stage is random. The collection
+generator saves every selected clan, family, domain, and random seed. Pfam
+labels balance the sampled input, but graph construction and community
+detection do not receive them; labels are revealed only for evaluation.
+
+Notebook 03 computes the collection-uniqueness audit and fully supplied target
+densities from the saved raw tables. It displays which cells enter the primary
+analysis and which target densities support a matched-edge-budget method claim;
+those empirical values are not duplicated in this README. AMI is the primary
+recovery measure across differently sized compositions because it adjusts
+expected chance agreement; NMI remains a secondary, intuitive measure.
 
 In the scaled notebook, `top_k=5` means that each protein nominates its five
 strongest available neighbours and the undirected graph retains the union of
-those nominations. This scales with the collection and avoids the arbitrary
-edge count used by the earlier smoke test.
+those nominations. This scales locally with the collection, but `k` remains an
+explicit sensitivity parameter and the realised density can differ by method;
+only `target_density` is used for formal matched-edge-budget comparisons.
 
 ## Repository map
 

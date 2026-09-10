@@ -132,6 +132,68 @@ def summarize_blast_pairs(hits: pd.DataFrame) -> pd.DataFrame:
     return pairs[["protein_a", "protein_b", *BLAST_COLUMNS]].reset_index(drop=True)
 
 
+def summarize_blast_directionality(hits: pd.DataFrame) -> dict[str, int | float | None]:
+    """Audit whether an all-vs-all BLAST pair was reported in both directions.
+
+    BLAST searches are directional even though the project ultimately builds
+    undirected graphs.  The relative score spread for bidirectional pairs is
+    ``abs(forward - reverse) / max(forward, reverse)`` after retaining the
+    strongest bit score in each ordered direction.
+    """
+
+    required = {"query_id", "subject_id", "bit_score", "evalue", "alignment_length"}
+    missing = required - set(hits.columns)
+    if missing:
+        raise ValueError(f"missing BLAST column(s): {', '.join(sorted(missing))}")
+    nonself = hits.loc[hits["query_id"] != hits["subject_id"]].copy()
+    if nonself.empty:
+        return {
+            "hsp_row_count": 0,
+            "undirected_pair_count": 0,
+            "bidirectional_pair_count": 0,
+            "single_direction_pair_count": 0,
+            "bidirectional_relative_spread_median": None,
+            "bidirectional_relative_spread_p90": None,
+            "bidirectional_relative_spread_max": None,
+        }
+    ordered = (
+        nonself.sort_values(
+            ["query_id", "subject_id", "bit_score", "evalue", "alignment_length"],
+            ascending=[True, True, False, True, False],
+            kind="stable",
+        )
+        .drop_duplicates(["query_id", "subject_id"], keep="first")
+        .copy()
+    )
+    endpoints = ordered.apply(
+        lambda row: sorted((str(row["query_id"]), str(row["subject_id"]))),
+        axis=1,
+        result_type="expand",
+    )
+    ordered[["protein_a", "protein_b"]] = endpoints
+    grouped = ordered.groupby(["protein_a", "protein_b"])["bit_score"]
+    direction_counts = grouped.size()
+    bidirectional_scores = grouped.apply(list).loc[direction_counts == 2]
+    spreads = bidirectional_scores.map(
+        lambda values: abs(values[0] - values[1]) / max(values)
+    )
+    return {
+        "hsp_row_count": len(hits),
+        "undirected_pair_count": len(direction_counts),
+        "bidirectional_pair_count": int((direction_counts == 2).sum()),
+        "single_direction_pair_count": int((direction_counts == 1).sum()),
+        "bidirectional_relative_spread_median": (
+            float(spreads.median()) if not spreads.empty else None
+        ),
+        "bidirectional_relative_spread_p90": (
+            float(spreads.quantile(0.9)) if not spreads.empty else None
+        ),
+        "bidirectional_relative_spread_max": (
+            float(spreads.max()) if not spreads.empty else None
+        ),
+    }
+
+
 def blastp_all_vs_all(
     sequences: Mapping[str, str],
     *,
@@ -200,6 +262,8 @@ def blastp_all_vs_all(
                 "2",
                 "-evalue",
                 str(evalue),
+                "-max_target_seqs",
+                str(len(clean_sequences)),
                 "-num_threads",
                 str(threads),
                 "-outfmt",

@@ -79,8 +79,12 @@ def partition_agreement(
                 "reference_label": label_column,
                 "reference_group_count": int(reference.nunique()),
                 "inferred_community_count": len(set(inferred)),
-                "nmi": normalized_mutual_info_score(reference, inferred),
-                "ami": adjusted_mutual_info_score(reference, inferred),
+                "nmi": normalized_mutual_info_score(
+                    reference, inferred, average_method="arithmetic"
+                ),
+                "ami": adjusted_mutual_info_score(
+                    reference, inferred, average_method="arithmetic"
+                ),
             }
         )
     return pd.DataFrame(rows)

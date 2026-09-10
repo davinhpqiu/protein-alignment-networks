@@ -27,7 +27,12 @@ Notes.docx
 ~$*.docx
 *.pdf
 docs/PROJECT.md
-references/
+docs/AUDIT_*.md
+latex-report-style.md
+Thesis_Template_OxfordPav/
+references/*
+!references/README.md
+!references/references.bib
 
 # Generated project artefacts
 data/raw/*

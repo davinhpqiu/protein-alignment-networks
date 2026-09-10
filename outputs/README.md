@@ -44,22 +44,28 @@ The repeated-sampling experiment on the 960-domain panel writes to:
 - `tables/pfam_large_panel_scores/`: all 460,320 master pair scores;
 - `tables/pfam_large_panel_graph_recovery_initial/`: the first 50-replicate
   diagnostic slice;
-- `tables/pfam_large_panel_graph_recovery_full/`: 14,400 graphs over `top_k`
-  and `percentile` rules, with a checksummed run manifest;
-- `tables/pfam_large_panel_graph_recovery_matched_density/`: 7,200 graphs over
-  `target_density` rules, including the `selection_shortfall` column that
-  records where a method could not fill the requested edge budget;
+- `tables/pfam_large_panel_graph_recovery_full/`: graphs over `top_k` and
+  `percentile` rules, with a checksummed run manifest;
+- `tables/pfam_large_panel_graph_recovery_matched_density/`: `target_density`
+  graphs, including the `selection_shortfall` column that records where a
+  method could not fill the requested edge budget;
+- `tables/pfam_large_panel_graph_recovery_unweighted_reference/`: a focused
+  reference-composition rerun where Louvain ignores native score weights;
+- `tables/pfam_large_panel_score_permutation_null/`: a deterministic control
+  that shuffles scores among pair identities within each collection;
 - `tables/pfam_large_panel_graph_summary/`: rule, factor, and paired-method
   summaries, collection fingerprints, and the collection-uniqueness audit;
 - `figures/pfam_large_panel/` and `figures/pfam_large_panel_full/`: the NMI
   distribution, density-mismatch, matched-density, and `top_k` sensitivity
   figures.
 
-The two recovery runs are produced by
-`scripts/run_resampled_graph_experiment.py` and the summary directory by
-`scripts/summarize_resampled_graph_experiment.py`. Set `MPLCONFIGDIR` to a
-writable folder when running the summariser, or Matplotlib may hang building
-its font cache and write tables without figures.
+The recovery and unweighted runs are produced by
+`scripts/run_resampled_graph_experiment.py`, the negative control by
+`scripts/run_score_permutation_null.py`, and the summary directory by
+`scripts/summarize_resampled_graph_experiment.py`. Exact realised counts are
+read from their manifests and displayed in Notebook 03 rather than duplicated
+here. Set `MPLCONFIGDIR` to a writable folder when running the summariser, or
+Matplotlib may hang building its font cache and write tables without figures.
 
 The `..._graph_recovery_smoke` and `..._graph_recovery_density_smoke`
 directories are small verification runs kept only to show the rules behaved as

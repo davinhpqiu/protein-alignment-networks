@@ -1,4 +1,10 @@
-"""Prepare a diverse multi-family Pfam seed collection for graph exploration."""
+"""Prepare a diverse multi-family Pfam seed collection for graph exploration.
+
+Official seed alignments are downloaded and validated, then capped families
+are represented by deterministic farthest-point sampling on alignment identity.
+The FASTA, node metadata, and checksum manifest produced here define the master
+panel loaded by Notebook 03; alignment gaps are removed before method scoring.
+"""
 
 from __future__ import annotations
 
@@ -218,6 +224,14 @@ def relative(path: Path, root: Path) -> str:
     return str(path.resolve().relative_to(root.resolve()))
 
 
+def display_path(path: Path) -> Path | str:
+    """Return path relative to the working directory when possible."""
+
+    try:
+        return path.relative_to(Path.cwd())
+    except ValueError:
+        return path
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -427,9 +441,9 @@ def main() -> None:
             f"  {family['family_accession']} {family['family_name']}: "
             f"{family['selected_count']} selected"
         )
-    print(f"FASTA: {fasta_path}")
-    print(f"Metadata: {metadata_path}")
-    print(f"Manifest: {manifest_path}")
+    print(f"FASTA: {display_path(fasta_path)}")
+    print(f"Metadata: {display_path(metadata_path)}")
+    print(f"Manifest: {display_path(manifest_path)}")
 
 
 if __name__ == "__main__":

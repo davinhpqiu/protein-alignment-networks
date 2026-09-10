@@ -1,4 +1,10 @@
-"""Generate reproducible balanced Pfam-domain collections for graph experiments."""
+"""Generate reproducible balanced Pfam-domain collections for graph experiments.
+
+The script crosses all requested clan/family/domain design levels and creates a
+stable seeded draw for every replicate.  It writes a collection manifest, long
+node-membership table, eligible-family frame, and checksum manifest; these are
+the authoritative definitions loaded and audited in Notebook 03.
+"""
 
 from __future__ import annotations
 

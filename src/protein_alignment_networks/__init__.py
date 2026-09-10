@@ -1,6 +1,20 @@
-"""Tools for building networks from protein sequence-alignment scores."""
+"""Reusable stages of the protein-sequence-to-network workflow.
 
-from .blast import blastp_all_vs_all, blastp_version, summarize_blast_pairs
+The package deliberately separates scientific concerns: :mod:`pipeline`,
+:mod:`blast`, and :mod:`dedal` produce pair scores; :mod:`graphs` converts one
+method's scores into a graph; :mod:`sampling` creates reproducible Pfam-domain
+collections; and :mod:`evaluation` compares an unsupervised graph partition
+with withheld reference labels.  The numbered notebooks explain why each
+stage is used, while scripts in ``scripts/`` orchestrate complete, recorded
+runs and save the tables consumed by the notebooks.
+"""
+
+from .blast import (
+    blastp_all_vs_all,
+    blastp_version,
+    summarize_blast_directionality,
+    summarize_blast_pairs,
+)
 from .comparison import (
     add_descending_ranks,
     canonical_pair_index,
@@ -48,6 +62,7 @@ __all__ = [
     "score_matrix_to_graph",
     "score_matrix_to_pairs",
     "spearman_correlations",
+    "summarize_blast_directionality",
     "summarize_blast_pairs",
     "validate_protein_sequence",
 ]
