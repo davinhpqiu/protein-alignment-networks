@@ -50,3 +50,14 @@ outputs/graphs/*
 # Downloaded third-party research code and pretrained model artefacts
 external/google-research/
 models/dedal/
+
+# LaTeX build artefacts
+*.aux
+*.bbl
+*.blg
+*.fdb_latexmk
+*.fls
+*.log
+*.out
+*.synctex.gz
+output/

@@ -4,9 +4,12 @@
 report. Thesis front matter and chapter structure are omitted.
 
 Empirical values in prose come from `generated_results.tex`, created by
-`scripts/build_report_assets.py` from the project's saved TSV and JSON
-artifacts. Same script creates report figures and copies static image assets and
-`references.bib`. Regenerate values through script.
+`scripts/build_report_assets.py` from saved TSV and JSON artifacts. Notebook 03,
+Section B8 runs same script. It writes canonical figures to
+`outputs/figures/pfam_large_panel_report/`, copies identical files to
+`report/figures/`, and records source tables and SHA-256 checksums in
+`report/figure_provenance.tsv`. It also copies static image assets and
+`references.bib`.
 
 Python dependencies are listed in root `requirements.txt`. LaTeX requires
 `latexmk` plus packages imported at top of `report.tex`; a full TeX Live
