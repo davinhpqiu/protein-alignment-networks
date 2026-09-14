@@ -26,6 +26,7 @@ htmlcov/
 Notes.docx
 ~$*.docx
 *.pdf
+!report/report.pdf
 docs/PROJECT.md
 docs/AUDIT_*.md
 latex-report-style.md
