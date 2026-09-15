@@ -62,3 +62,6 @@ models/dedal/
 *.out
 *.synctex.gz
 output/
+
+# Git bundles and archives
+*.bundle
