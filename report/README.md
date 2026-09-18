@@ -27,7 +27,13 @@ Compile from `report/`:
 ```bash
 latexmk -pdf -interaction=nonstopmode -halt-on-error \
   -jobname=protein_alignment_networks_report \
-  -output-directory=../output/pdf report.tex
+  -output-directory=../build/report report.tex
 ```
 
-Output: `output/pdf/protein_alignment_networks_report.pdf`.
+Build output: `build/report/protein_alignment_networks_report.pdf`.
+
+Copy a checked release into the versioned report location before committing:
+
+```bash
+cp ../build/report/protein_alignment_networks_report.pdf report.pdf
+```

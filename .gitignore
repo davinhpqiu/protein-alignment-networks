@@ -23,14 +23,10 @@ htmlcov/
 .vscode/
 
 # Local-only research records and literature
-Notes.docx
+local/
 ~$*.docx
 *.pdf
 !report/report.pdf
-docs/PROJECT.md
-docs/AUDIT_*.md
-latex-report-style.md
-Thesis_Template_OxfordPav/
 references/*
 !references/README.md
 !references/references.bib
@@ -61,7 +57,8 @@ models/dedal/
 *.log
 *.out
 *.synctex.gz
-output/
+build/
+tmp/
 
 # Git bundles and archives
 *.bundle

@@ -98,11 +98,51 @@ def configure_plot_style() -> None:
     )
 
 
+METHOD_MARKERS = {"biopython": "o", "blast": "^"}
+ERRORBAR_STYLE = {
+    "capsize": 2.0,
+    "elinewidth": 0.8,
+    "capthick": 0.8,
+    "ecolor": "#5A5A5A",
+    "alpha": 0.9,
+}
+BAR_ERROR_STYLE = {
+    "capsize": 2.0,
+    "ecolor": "#5A5A5A",
+    "error_kw": {"elinewidth": 0.8, "capthick": 0.8},
+}
+
+
+def quartile_error(frame: pd.DataFrame, metric: str, scale: float = 1.0):
+    """Return asymmetric interquartile error bars for one summarised metric.
+
+    Argument ``metric`` names the summary column stem, so ``ami`` reads
+    ``median_ami``, ``lower_quartile_ami``, and ``upper_quartile_ami``. Summary
+    tables written before those quartile columns existed return ``None``, and
+    calling plots then draw medians without error bars.
+    """
+
+    columns = (f"median_{metric}", f"lower_quartile_{metric}", f"upper_quartile_{metric}")
+    if not all(column in frame.columns for column in columns):
+        return None
+    median, lower, upper = (
+        scale * frame[column].to_numpy(dtype=float) for column in columns
+    )
+    return np.vstack(
+        [np.clip(median - lower, 0.0, None), np.clip(upper - median, 0.0, None)]
+    )
+
+
+def raw_quartile_error(medians: np.ndarray, lower: np.ndarray, upper: np.ndarray):
+    """Return interquartile error bars from raw per-collection quantiles."""
+
+    return np.vstack(
+        [np.clip(medians - lower, 0.0, None), np.clip(upper - medians, 0.0, None)]
+    )
+
+
 def copy_static_assets() -> None:
     sources = {
-        ROOT / "Thesis_Template_OxfordPav/Logos/logo2.png": (
-            REPORT_FIGURES / "logo2.png"
-        ),
         ROOT / "references/references.bib": REPORT / "references.bib",
     }
     for source, destination in sources.items():
@@ -456,6 +496,12 @@ def write_macros() -> None:
         "BlastTopTenClanAMI": f"{blast_top10_clan['median_ami']:.3f}",
         "BioPercentileNinetyClanAMI": f"{bio_p90_clan['median_ami']:.3f}",
         "BlastPercentileNinetyClanAMI": f"{blast_p90_clan['median_ami']:.3f}",
+        "TopTenClanAMIGap": (
+            f"{bio_p90_clan['median_ami'] - bio_top10_clan['median_ami']:.3f}"
+        ),
+        "TopFiveMinFamilyAMI": (
+            f"{min(bio_top5['median_ami'], blast_top5['median_ami']):.3f}"
+        ),
         "BioTopFiveDensityPct": f"{100 * bio_top5['median_density']:.2f}",
         "BlastTopFiveDensityPct": f"{100 * blast_top5['median_density']:.2f}",
         "BioPercentileNinetyDensityPct": f"{100 * bio_p90['median_density']:.2f}",
@@ -522,16 +568,20 @@ def plot_percentile_mismatch() -> None:
         panel = percentile.loc[percentile["reference_label"] == reference]
         for method, group in panel.groupby("method"):
             ordered = group.sort_values("threshold", ascending=False)
-            values = ordered[metric]
-            if metric == "median_density":
-                values = 100 * values
-            axis.plot(
+            scale = 100.0 if metric == "median_density" else 1.0
+            values = scale * ordered[metric]
+            errors = quartile_error(
+                ordered, "density" if metric == "median_density" else "ami", scale
+            )
+            axis.errorbar(
                 100 * (1 - ordered["threshold"]),
                 values,
+                yerr=errors,
                 color=colours[method],
-                marker="o",
+                marker=METHOD_MARKERS[method],
                 linewidth=1.5,
                 label=method_labels[method],
+                **ERRORBAR_STYLE,
             )
         axis.set_title(title)
         axis.set_xlabel("Available scores retained (%)")
@@ -634,7 +684,7 @@ def plot_rule_recovery() -> None:
         "target_density": "#B24A35",
         "percentile": "#6B8E23",
     }
-    markers = {"biopython": "o", "blast": "s"}
+    markers = METHOD_MARKERS
     method_labels = {"biopython": "Biopython", "blast": "BLAST"}
     rule_labels = {
         "top_k": r"top-$k$",
@@ -652,14 +702,17 @@ def plot_rule_recovery() -> None:
             ["method", "threshold_rule"]
         ):
             ordered = group.sort_values("median_density")
-            axis.plot(
+            axis.errorbar(
                 100 * ordered["median_density"],
                 ordered["median_ami"],
+                yerr=quartile_error(ordered, "ami"),
+                xerr=quartile_error(ordered, "density", 100.0),
                 color=colours[graph_rule],
                 marker=markers[method],
                 linewidth=1.4,
                 markersize=5,
                 label=f"{method_labels[method]} - {rule_labels[graph_rule]}",
+                **ERRORBAR_STYLE,
             )
         axis.set_xlabel("Median realised edge density (%)")
         axis.set_title(title)
@@ -691,7 +744,7 @@ def plot_rule_topology() -> None:
         "target_density": "#B24A35",
         "percentile": "#6B8E23",
     }
-    markers = {"biopython": "o", "blast": "s"}
+    markers = METHOD_MARKERS
     method_labels = {"biopython": "Biopython", "blast": "BLAST"}
     rule_labels = {
         "top_k": r"top-$k$",
@@ -708,14 +761,16 @@ def plot_rule_topology() -> None:
             ["method", "threshold_rule"]
         ):
             ordered = group.sort_values("median_density")
-            axis.plot(
+            axis.errorbar(
                 100 * ordered["median_density"],
                 ordered[metric],
+                yerr=quartile_error(ordered, metric.removeprefix("median_")),
                 color=colours[graph_rule],
                 marker=markers[method],
                 linewidth=1.4,
                 markersize=5,
                 label=f"{method_labels[method]} - {rule_labels[graph_rule]}",
+                **ERRORBAR_STYLE,
             )
         axis.set_xscale("log")
         axis.set_xlabel("Median realised edge density (%)")
@@ -1171,8 +1226,22 @@ def plot_metric_comparison() -> None:
                 ]
             )
             x = np.arange(len(order))
-            axis.plot(x, ordered["median_nmi"], marker="o", label="NMI")
-            axis.plot(x, ordered["median_ami"], marker="o", label="AMI")
+            axis.errorbar(
+                x,
+                ordered["median_nmi"],
+                yerr=quartile_error(ordered, "nmi"),
+                marker="o",
+                label="NMI",
+                **ERRORBAR_STYLE,
+            )
+            axis.errorbar(
+                x,
+                ordered["median_ami"],
+                yerr=quartile_error(ordered, "ami"),
+                marker="^",
+                label="AMI",
+                **ERRORBAR_STYLE,
+            )
             axis.fill_between(
                 x,
                 ordered["median_nmi"].to_numpy(dtype=float),
@@ -1233,8 +1302,14 @@ def plot_sensitivity_checks() -> None:
         )
     ].copy()
     null_family = null.loc[null["reference_label"] == family].copy()
-    real_summary = real.groupby(["threshold_rule", "threshold"])["ami"].median()
-    null_summary = null_family.groupby(["threshold_rule", "threshold"])["ami"].median()
+    real_quartiles = real.groupby(["threshold_rule", "threshold"])["ami"].quantile(
+        [0.25, 0.5, 0.75]
+    )
+    null_quartiles = null_family.groupby(["threshold_rule", "threshold"])[
+        "ami"
+    ].quantile([0.25, 0.5, 0.75])
+    real_summary = real_quartiles.xs(0.5, level=-1)
+    null_summary = null_quartiles.xs(0.5, level=-1)
 
     reference_real = all_recovery.loc[
         (all_recovery["clans_per_collection"] == 4)
@@ -1252,32 +1327,46 @@ def plot_sensitivity_checks() -> None:
             )
         )
     ]
-    weighted_summary = reference_real.groupby(
+    weighted_quartiles = reference_real.groupby(
         ["method", "threshold_rule", "threshold"]
-    )["ami"].median()
-    unweighted_summary = (
+    )["ami"].quantile([0.25, 0.5, 0.75])
+    unweighted_quartiles = (
         unweighted.loc[unweighted["reference_label"] == family]
         .groupby(["method", "threshold_rule", "threshold"])["ami"]
-        .median()
+        .quantile([0.25, 0.5, 0.75])
     )
+    weighted_summary = weighted_quartiles.xs(0.5, level=-1)
+    unweighted_summary = unweighted_quartiles.xs(0.5, level=-1)
+
+    def quantile_bars(quartiles, keys):
+        medians = np.array([quartiles.loc[(*key, 0.5)] for key in keys], dtype=float)
+        lower = np.array([quartiles.loc[(*key, 0.25)] for key in keys], dtype=float)
+        upper = np.array([quartiles.loc[(*key, 0.75)] for key in keys], dtype=float)
+        return medians, raw_quartile_error(medians, lower, upper)
 
     figure, axes = plt.subplots(1, 2, figsize=(8.6, 3.6))
     settings = [("top_k", 5.0), ("target_density", 0.02)]
     labels = ["top-k 5", "density 2%"]
     x = np.arange(len(settings))
+    observed_medians, observed_errors = quantile_bars(real_quartiles, settings)
+    null_medians, null_errors = quantile_bars(null_quartiles, settings)
     axes[0].bar(
         x - 0.18,
-        [real_summary.loc[item] for item in settings],
+        observed_medians,
+        yerr=observed_errors,
         width=0.36,
         label="observed scores",
         color="#002147",
+        **BAR_ERROR_STYLE,
     )
     axes[0].bar(
         x + 0.18,
-        [null_summary.loc[item] for item in settings],
+        null_medians,
+        yerr=null_errors,
         width=0.36,
         label="permuted scores",
         color="#B24A35",
+        **BAR_ERROR_STYLE,
     )
     axes[0].set_xticks(x, labels)
     axes[0].set_ylabel("Median family AMI")
@@ -1297,19 +1386,27 @@ def plot_sensitivity_checks() -> None:
         "BLAST\ndensity",
     ]
     x = np.arange(len(categories))
-    axes[1].plot(
+    weighted_medians, weighted_errors = quantile_bars(weighted_quartiles, categories)
+    unweighted_medians, unweighted_errors = quantile_bars(
+        unweighted_quartiles, categories
+    )
+    axes[1].errorbar(
         x,
-        [weighted_summary.loc[item] for item in categories],
+        weighted_medians,
+        yerr=weighted_errors,
         marker="o",
         label="native weights",
         color="#002147",
+        **ERRORBAR_STYLE,
     )
-    axes[1].plot(
+    axes[1].errorbar(
         x,
-        [unweighted_summary.loc[item] for item in categories],
-        marker="s",
+        unweighted_medians,
+        yerr=unweighted_errors,
+        marker="^",
         label="unweighted",
         color="#B24A35",
+        **ERRORBAR_STYLE,
     )
     axes[1].set_xticks(x, category_labels)
     axes[1].set_title("Community-weight sensitivity")
@@ -1343,13 +1440,15 @@ def plot_composition_recovery() -> None:
             ]
             for clans, group in panel.groupby("clans_per_collection"):
                 ordered = group.sort_values("domains_per_family")
-                axis.plot(
+                axis.errorbar(
                     ordered["domains_per_family"],
                     ordered["median_ami"],
+                    yerr=quartile_error(ordered, "ami"),
                     color=colours[int(clans)],
                     marker="o",
                     linewidth=1.5,
                     label=f"{int(clans)} clans",
+                    **ERRORBAR_STYLE,
                 )
             axis.set_title(f"{method_label}: {families} families per clan")
             axis.set_xticks([10, 20, 40])
@@ -1378,7 +1477,7 @@ def plot_composition_topology() -> None:
         & (factor["threshold"] == 5)
     ].copy()
     colours = {2: "#002147", 4: "#B24A35", 8: "#6B8E23"}
-    markers = {2: "o", 3: "s"}
+    markers = {2: "o", 3: "^"}
     methods = [("biopython", "Biopython"), ("blast", "BLAST")]
     figure, axes = plt.subplots(2, 2, figsize=(9.2, 6.2), sharex=True)
     for row, (method, method_label) in enumerate(methods):
@@ -1392,21 +1491,25 @@ def plot_composition_topology() -> None:
                 if group.empty:
                     continue
                 label = f"{clans} clans; {families} families/clan"
-                axes[row, 0].plot(
+                axes[row, 0].errorbar(
                     group["node_count"],
                     100 * group["median_density"],
+                    yerr=quartile_error(group, "density", 100.0),
                     color=colour,
                     marker=marker,
                     linewidth=1.3,
                     label=label,
+                    **ERRORBAR_STYLE,
                 )
-                axes[row, 1].plot(
+                axes[row, 1].errorbar(
                     group["node_count"],
                     group["median_components"],
+                    yerr=quartile_error(group, "components"),
                     color=colour,
                     marker=marker,
                     linewidth=1.3,
                     label=label,
+                    **ERRORBAR_STYLE,
                 )
         axes[row, 0].set_ylabel(f"{method_label}\nMedian density (%)")
         axes[row, 1].set_ylabel(f"{method_label}\nMedian components")

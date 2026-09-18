@@ -118,28 +118,39 @@
 \setcounter{page}{1}
 
 \section*{Abstract}
-Sequence-similarity networks encode protein sequences as vertices and selected
-pairwise similarities as edges. Resulting topology depends on protein sample,
-score method, and edge rule. We implemented a reproducible pipeline and tested
-these choices on \num{\MasterDomains} Pfam domains from \MasterFamilies\ families
-and \MasterClans\ clans. A factorial design generated
-\num{\SampledCollections} balanced collections and
-\num{\GraphsEvaluated} weighted graphs using exact local alignment or BLAST,
-three edge rule families, and Louvain community detection. Adjusted mutual
-information (AMI) measured recovery of withheld Pfam labels. At matched 2\%
-edge density, median absolute family NMI difference between methods was
-\MatchedTwoAbsDeltaNMI. Equal score percentiles produced unequal densities.
+Sequence-similarity networks (SSNs) encode protein sequences as vertices and
+selected pairwise similarities as edges. Their topology depends on the protein
+sample, the score method, and the rule that turns scores into edges. We
+systematically compare these methodological choices and evaluate how well the
+resulting graph structure reflects Pfam protein families and clans. We
+implemented a reproducible pipeline on \num{\MasterDomains} Pfam domains from
+\MasterFamilies\ families and \MasterClans\ clans. Using a factorial design, we
+sampled \num{\SampledCollections} balanced collections and built
+\num{\GraphsEvaluated} weighted graphs from exact local alignment or BLAST
+scores under three edge rule families, then detected communities with the
+Louvain method. We measured recovery of withheld Pfam labels by adjusted mutual
+information (AMI). Overall, top-\(k\) rules, which connect each domain to its
+\(k\) highest-scoring neighbours, recovered Pfam structure most consistently
+under both score methods; top-10 reached median family AMI \BioTopTenAMI\ with
+exact alignment and \BlastTopTenAMI\ with BLAST. At matched 2\% edge density,
+median absolute family normalised mutual information (NMI) difference between
+methods was \MatchedTwoAbsDeltaNMI, whereas equal score percentiles produced
+unequal densities.
 Score permutation reduced family AMI at reference setting from
 \ObservedTopFiveAMI\ to \NullTopFiveAMI. Results quantify sampling and edge
 selection effects in protein network analysis.
 
 \section{Introduction}
 
-We may consider protein as a finite ordered sequence of amino-acid residues and
+Proteins perform most molecular functions in living cells, including
+catalysis, signalling, and transport. Proteins that share ancestry often share
+structure and function, so relating proteins through their sequences is a basic
+task in molecular biology.
+We may consider a protein as a finite ordered sequence of amino-acid residues and
 intuitively would expect proteins with similar sequences to be similar in some biological sense.
-Protein alignment is then the family of techniques used to estimate "similarity" from amino acid
-sequences alone. Typically protein sequences are very long and instead
-we focus on protein domains - shorter, contiguous subsequences of a protein.
+Protein alignment is then the family of techniques used to estimate ``similarity'' from amino acid
+sequences alone \citep{durbin1998biological}. Protein sequences are typically long, so
+we instead focus on protein domains: shorter, contiguous subsequences of a protein.
 
 For any given pair of protein domain sequences of comparable length,
 pairwise alignment inserts gaps into two such sequences so that residues judged
@@ -151,10 +162,11 @@ gap costs penalise indels, so total score rewards correspondence and penalises
 local alignment selects one region of each sequence maximising total score, and
 so tolerates unrelated flanking segments. Comparison at domain level uses local
 alignment. Several algorithms produce such a score, differing in computational cost and in
-which pairs they report and is further discussed in Section \ref{sec:alignment_algo}
+which pairs they report; Section~\ref{sec:alignment_algo} discusses them further.
 
-Pair scores are then used to define a sequence-similarity network (SSN) where vertices represent
-sequences, and selected pairs form weighted edges. SSNs support exploration and
+One application of pairwise alignment scores is the construction of
+sequence-similarity networks (SSNs), in which vertices represent sequences and
+selected pairs form weighted edges. SSNs support exploration and
 clustering of protein families
 \citep{atkinson2009sequence,gerlt2015efi,enright2002mcl}. Sequences alone do
 not determine an SSN. Three choices intervene: the collection of proteins considered,
@@ -162,26 +174,35 @@ the alignment algorithm to score pairs, and the graph rule that promotes scores
 to edges. Threshold choice has no accepted universal value, and reported
 topology shifts with it \citep{apeltsin2011threshold,hornung2023objective}.
 
-We then seek to ask how graphs built from different protein
-collections, alignment algorithms, and graph construction rules compare and how well, if at all,
-do these graphs recover known biological structure.
+\medskip
+In this article, we conduct a systematic comparison of methodological choices
+in SSN construction. For graphs built from different protein collections,
+alignment algorithms, and graph construction rules, we evaluate how well the
+resulting graph structure reflects known biological protein families.
 
-This study permutes those effects on a recorded panel of
-\num{\MasterDomains} Pfam seed domains from \MasterFamilies\ families and
-\MasterClans\ clans. A factorial design samples \num{\SampledCollections}
-balanced collections; two scoring methods and 12 edge settings yield
-\num{\GraphsEvaluated} weighted graphs. Community detection runs without
-labels, and agreement with withheld Pfam family and clan labels quantifies
-recovery.
+We vary these three choices systematically on a recorded panel of
+\num{\MasterDomains} seed domains from \MasterFamilies\ families and
+\MasterClans\ clans of the Pfam database \citep{mistry2021pfam}. Using a
+factorial design, we sample \num{\SampledCollections} balanced collections, and
+across two scoring methods and 12 edge settings we obtain
+\num{\GraphsEvaluated} weighted graphs. We then detect communities in each graph
+without using labels and quantify their agreement with withheld Pfam family and
+clan labels.
 
 \section{Alignment algorithms and scoring}
 \label{sec:alignment_algo}
 
+In this section, we describe the two methods we use to score pairs of
+sequences: exact local alignment by the Smith--Waterman algorithm and heuristic
+search by BLAST. We then compare their scoring systems and briefly describe a
+learned alternative that we did not use at scale.
+
 \subsection{Exact local alignment}
 \label{ssec:exact}
 
-Let \(x=x_1\ldots x_p\) and \(y=y_1\ldots y_q\) be amino-acid sequences.
-Substitution matrix \(a(\cdot,\cdot)\) assigns score \(a(x_i,y_j)\) to an
+Let \(x=x_1\ldots x_p\) and \(y=y_1\ldots y_q\) be amino-acid sequences,
+where each \(x_i\) and \(y_j\) is one of the 20 standard amino acids.
+A substitution matrix \(a(\cdot,\cdot)\) assigns score \(a(x_i,y_j)\) to an
 aligned residue pair. BLOSUM62 is a \(20\times20\) substitution matrix
 estimated from conserved blocks of aligned proteins, its entries scaled
 log-odds of observed against chance residue pairing
@@ -195,8 +216,8 @@ multi-residue indel occurs more readily than several isolated ones. We take
 \(g_o=11\) and \(g_e=1\), conventional values for BLOSUM62.
 
 The Smith--Waterman algorithm finds an exact optimal local alignment by dynamic programming
-\citep{smith1981identification}. Gotoh's formulation attains affine gap costs
-in \(O(pq)\) time by carrying separate states for gapped and ungapped
+\citep{smith1981identification}. Gotoh's formulation computes this optimum under
+affine gap costs in \(O(pq)\) time by carrying separate states for gapped and ungapped
 extensions,
 \begin{align*}
 E_{ij}&=\max\{H_{i-1,j}-g_o,\ E_{i-1,j}-g_e\},\\
@@ -213,13 +234,15 @@ length \(\ell\) costs \(g_o+(\ell-1)g_e\), and local score is
 \[
 s(x,y)=\max_{i,j}H_{ij}.
 \]
-Biopython's \texttt{PairwiseAligner} \citep{cock2009biopython} computed these
-scores in local mode with BLOSUM62, \(g_o=11\), and \(g_e=1\).
+In this article, we compute exact local alignment scores with the
+Smith--Waterman implementation in Biopython's \texttt{PairwiseAligner}
+\citep{cock2009biopython}, run in local mode with BLOSUM62 and affine gap costs
+\(g_o=11\) and \(g_e=1\).
 
 \subsection{Heuristic search}
 \label{ssec:heuristic}
 
-The BLASTP algorithm avoids exhaustive dynamic programming. It indexes short words, locates
+BLASTP, the protein--protein search program of BLAST, avoids exhaustive dynamic programming. It indexes short words, locates
 high-scoring word matches between query and subject, and extends only those
 seeds into local alignments \citep{altschul1990basic,camacho2009blastplus}.
 Cost per pair falls well below \(O(pq)\). A weakly similar pair may yield no
@@ -232,19 +255,20 @@ S'=\frac{\lambda S-\log K}{\log 2},
 \]
 where \(\lambda\) and \(K\) are Karlin--Altschul parameters fixed by
 substitution matrix, gap costs, and background residue frequencies
-\citep{karlin1990methods}. Graph weights used \(S'\).
+\citep{karlin1990methods}. In this article, BLAST graphs use bit scores \(S'\)
+as edge weights.
 
-BLAST runs used BLOSUM62 and nominal gap costs 11 and 1, matching exact local
+We ran BLAST using BLOSUM62 and nominal gap costs \(g_o=11\) and \(g_e=1\), matching exact local
 alignment of Section~\ref{ssec:exact}, so both methods score aligned residue
 pairs from one substitution matrix. BLAST additionally applies
 composition-based statistics in mode 2, which rescales substitution scores
 separately for each query--subject pair according to that pair's residue
 composition. Rescaling suppresses high scores arising from compositional bias
-rather than from shared ancestry, for instance between two sequences both rich
+rather than from shared ancestry, for instance between two sequences that are both rich
 in a single residue.
 
 BLAST reports an alignment only when its expect value falls below a threshold.
-For an alignment of raw score \(S\) and bit score \(S'\),
+For an alignment with raw score \(S\) and bit score \(S'\), the E-value of the pair is defined as
 \[
 E = K m'n'\,e^{-\lambda S} = m'n'\,2^{-S'},
 \]
@@ -257,7 +281,7 @@ that size, and small \(E\) marks a score unlikely to arise at random. Since
 \(E\) scales with \(m'n'\), one value of \(E\) denotes different degrees of
 similarity in databases of different size.
 
-Runs used \(E=10\) under standard BLAST default. That value is permissive by
+We used \(E=10\), the standard BLAST default. That value is permissive by
 design, far above thresholds near \(10^{-3}\) conventionally used to claim
 homology, and it exists to surface marginal hits rather than to establish
 significance. Permissiveness is apt here since edge selection happens
@@ -267,12 +291,12 @@ only which pairs carry a score at all.
 BLAST searches are directional and may return several high-scoring segment
 pairs (HSPs) for one query--subject comparison. HSP of highest bit score
 represented each ordered pair, and highest score across reported directions
-represented each unordered pair. BLAST reported \num{\BlastReportedPairs} of
+represented each unordered pair. In our experiments, BLAST reported \num{\BlastReportedPairs} of
 \num{\MasterPairs} master pairs, or \(\BlastCoveragePct\%\).
 
 \subsection{Comparability of the two scoring systems}
 
-Both methods used BLOSUM62 and nominal gap parameters 11 and 1. Two
+Both methods used BLOSUM62 and nominal gap parameters \(g_o=11\) and \(g_e=1\). Two
 differences remain. BLAST charges an extension cost for every gap residue, so a
 gap of length \(\ell\) costs \(g_o+\ell g_e\), exceeding cost under exact alignment by
 \(g_e\) at every gap. Composition-based statistics further adjust BLAST
@@ -287,15 +311,23 @@ than assert identical scoring systems.
 
 DEDAL is a pretrained neural model that learns sequence representations and
 alignment parameters from protein data, returning a Smith--Waterman-style score
-\citep{llinareslopez2023deep}. Pretrained model was verified on pilot data.
-Measured runtime exceeded available compute budget for all-versus-all scoring
-of master panel, so scaled results use exact local alignment and BLAST only.
+\citep{llinareslopez2023deep}. We verified this pretrained model on pilot data,
+but its measured runtime exceeded our compute budget for all-versus-all scoring
+of the master panel (Section~\ref{ssec:panel}), so scaled results use exact
+local alignment and BLAST only.
 
 \section{Methods}
 
+In this section, we describe how we turn pair scores into graphs and evaluate
+them. We first define networks built from pair scores, then describe how we
+select a panel of Pfam domains and sample collections from it, how edge rules
+select edges, and how we detect communities and compare them with Pfam labels.
+
 \subsection{Networks from pair scores}
 
-For collection \(C\), let \(V\) be its vertex set, \(n=\lvert V\rvert\),
+A collection \(C\) is a set of protein domain sequences drawn from the master
+panel (Section~\ref{ssec:panel}). Each graph built from \(C\) has one vertex
+per sequence, so we identify its vertex set \(V\) with \(C\). Let \(n=\lvert V\rvert\),
 \(\mathcal P(V)=\{\{i,j\}:i,j\in V,\ i\neq j\}\), and
 \(P=\lvert\mathcal P(V)\rvert=\binom n2\). Method \(m\) reports score
 \(s_e^m\) for each pair in available set \(A_m\subseteq\mathcal P(V)\); pairs
@@ -308,14 +340,14 @@ with realised density \(\delta=\lvert E_{m,\theta}\rvert/P\), fraction of
 possible pairs that became edges. Term \emph{realised} marks \(\delta\) as an
 outcome rather than an input, since top-\(k\) and percentile rules fix no edge
 count in advance and target density can fall short of its request. Every input
-sequence remains a vertex; sequences with no selected pair become isolates.
+sequence remains a vertex; sequences with no selected pair become isolated vertices.
 
 Each vertex carries a stable identifier formed from its UniProt accession with
 domain start and end coordinates, for example \texttt{A0A0H3GJZ1\_27\_153}.
 Lexicographic order of identifiers resolves ties wherever a selection would
 otherwise be ambiguous, making every procedure below deterministic.
 
-Path from collection to reported quantity is
+The path from collection to reported quantity is
 \[
 C \longrightarrow \{s_e^m:e\in A_m\}
 \longrightarrow G(C,m,\theta)
@@ -323,31 +355,34 @@ C \longrightarrow \{s_e^m:e\in A_m\}
 \longrightarrow \operatorname{AMI}(U,V^*),
 \]
 where \(U\) is a community partition detected without labels and \(V^*\) is
-withheld Pfam partition. Remaining subsections define each arrow. Master panel
+withheld Pfam partition. The remaining subsections define each arrow. The master panel
 and sampling design fix \(C\), edge rules fix \(\theta\), and community
 detection with agreement measures fixes \(U\) and final comparison.
 
 \subsection{Master panel}
+\label{ssec:panel}
 
-The Pfam database defines families of homologous domains using curated seed alignments and
+To sample subsets of protein sequences on which to build graphs, we first fix a
+master panel: a recorded set of Pfam seed domains from which every collection is
+drawn. The Pfam database defines families of homologous domains using curated seed alignments and
 profile hidden Markov models; clans group families with evidence of common
 ancestry \citep{mistry2021pfam}.
 
-Panel selection follows a rejection sampling procedure over Pfam clans, run under seed
-\SamplingSeed. The procedure first reads official family--clan catalogue, discards
+We select the panel by a rejection sampling procedure over Pfam clans. The
+procedure first reads the official family--clan catalogue, discards
 unassigned families and clans holding fewer than three catalogue families, then
-shuffles sorted clan list. Within each clan in that order it shuffles sorted
+shuffles the sorted clan list. Within each clan in that order it shuffles the sorted
 family list and inspects families in turn, accepting those of InterPro type
 \emph{domain} or \emph{family} carrying at least \TargetPerFamily\ reported
 seed domains. A clan is retained once three families are accepted, and skipped
 when fewer prove eligible. Selection stops at \MasterClans\ retained clans. One
-random stream drives every shuffle, so seed alone reproduces the panel. Trace
+random stream drives every shuffle, so a single seed reproduces the panel. A trace
 table records every family inspected together with its acceptance or rejection. Pseudocode of the full procedure
 may be found in Appendix~\ref{app:panel}.
 
 Each selected seed alignment is filtered to unique sequences over 20 standard
-amino acids with consistent coordinates. Deterministic farthest-point sampling
-then selects \TargetPerFamily\ representatives per family. First sequence has
+amino acids with consistent coordinates. We then use deterministic farthest-point sampling
+to select \TargetPerFamily\ representatives per family. First sequence has
 length nearest family median. Given selected set \(S\) and remaining set
 \(R\), next sequence is
 \[
@@ -401,11 +436,11 @@ with \(P=\lvert\mathcal P(V)\rvert\), and available set
 \((\mathrm{top},k)\), \((\mathrm{pct},p)\), or \((\mathrm{dens},d)\) defined
 below.
 
-For \(i\in V\), available neighbours are \(A_m(i)=\{j\in V:\{i,j\}\in A_m\}\). Let \(N_k^m(i)\) be the
+For \(i\in V\), the available neighbours are \(A_m(i)=\{j\in V:\{i,j\}\in A_m\}\). Let \(N_k^m(i)\) be the
 first \(\min\{k,\lvert A_m(i)\rvert\}\) elements of
 \(A_m(i)\) under descending score with ties broken by ascending identifier. For
-\(e\in A_m\), let \(r_e^m\in(0,1]\) be ascending rank of \(s_e^m\) with ties
-averaged and divided by \(\lvert A_m\rvert\) and \(q_e^m\) be descending rank
+\(e\in A_m\), let \(r_e^m\in(0,1]\) be the ascending rank of \(s_e^m\), with ties
+averaged and divided by \(\lvert A_m\rvert\), and let \(q_e^m\) be the descending rank,
 with \(q_e^m=1\) at highest score. Let
 \(b_m(d)=\min\{\lvert A_m\rvert,\lceil dP\rceil\}\). Three rule families are
 \begin{align*}
@@ -419,12 +454,12 @@ E_{m,d}^{\mathrm{dens}}
 \(E_{m,k}^{\mathrm{top}}\) (top, \(k\)) lets each vertex nominate up to \(k\) strongest available neighbours
 and retains undirected union, so retained edge count grows with \(n\) rather
 than with \(\binom n2\) \citep{camoglu2006multiattribute}. \(E_{m,p}^{\mathrm{pct}}\) (pct, \(p\))
-retains upper tail of scores a method reported, so it acts on \(A_m\); it
+retains the upper tail of scores a method reported, so it acts on \(A_m\); it
 coincides with target density \(1-p\) exactly when \(A_m=\mathcal P(V)\), and
 otherwise yields a sparser graph in proportion to missing coverage. \(E_{m,d}^{\mathrm{dens}}\) (dens, \(d\)) requests a common global edge budget \(\lceil dP\rceil\) on
 identical vertex sets, with shortfall
 \(\max\{0,\lceil dP\rceil-\lvert A_m\rvert\}\) recording a budget a method
-could not supply. Parameters are
+could not supply. The parameters used in our experiments are
 \[
 k\in\{1,2,5,10\},\qquad
 p\in\{0.90,0.95,0.98,0.99\},\qquad
@@ -434,10 +469,15 @@ giving 12 settings per method.
 
 \subsection{Communities and agreement}
 
-Communities were detected using weighted Louvain optimisation
-\citep{blondel2008fast}, as implemented in NetworkX
-\citep{hagberg2008exploring}. This heuristic repeatedly moves vertices and
-aggregates communities to increase weighted modularity
+To find groups of vertices that are densely connected to each other, we apply
+community detection to each graph. Several methods exist; we use the Louvain
+method. We identified communities in the graphs using weighted Louvain
+optimisation \citep{blondel2008fast}, as implemented in NetworkX
+\citep{hagberg2008exploring}. This heuristic starts with each vertex in its own
+community and alternates two phases. First, it moves single vertices into a
+neighbouring community whenever the move increases weighted modularity; second,
+it merges each community into a single vertex and repeats on the reduced graph,
+stopping when no move increases modularity. Weighted modularity is
 \[
 Q=\frac{1}{2W}\sum_{i,j}\left(w_{ij}-\gamma\frac{k_i k_j}{2W}\right)
 \mathbf 1\{u_i=u_j\}.
@@ -445,12 +485,14 @@ Q=\frac{1}{2W}\sum_{i,j}\left(w_{ij}-\gamma\frac{k_i k_j}{2W}\right)
 For vertices \(i\) and \(j\), \(w_{ij}\) is their edge weight when
 \(\{i,j\}\in E\), and zero otherwise. Weighted degree is
 \(k_i=\sum_j w_{ij}\), and total edge weight is
-\(W=\frac12\sum_{i,j}w_{ij}\). Parameter \(\gamma>0\) controls community
+\(W=\frac12\sum_{i,j}w_{ij}\). The parameter \(\gamma>0\) controls community
 resolution; all experiments use \(\gamma=1\). Variable \(u_i\) denotes the
 community assigned to vertex \(i\), hence indicator \(\mathbf1\{u_i=u_j\}\) equals
 one when \(i\) and \(j\) share a community.
 
-Choose one of \(n\) vertices uniformly. Let \(U\) be its detected community and
+To compare detected community structure with ground-truth Pfam family and
+clan labels, we use two measures: normalised mutual information (NMI) and
+adjusted mutual information (AMI). Choose one of \(n\) vertices uniformly. Let \(U\) be its detected community and
 \(V^*\) its withheld Pfam label. Let \(n_{uv}\) count vertices assigned to
 community \(u\) with label \(v\), \(n_u=\sum_v n_{uv}\), and
 \(n_v=\sum_u n_{uv}\). Joint and marginal proportions are
@@ -465,7 +507,7 @@ I(U;V^*)=\sum_{u,v}p_{uv}\log\frac{p_{uv}}{p_u p_v},\qquad
 H(U)=-\sum_u p_u\log p_u,\qquad
 H(V^*)=-\sum_v p_v\log p_v,
 \]
-with \(0\log0=0\); \(\log\) denotes natural logarithm. Normalised mutual information and adjusted mutual information are
+with \(0\log0=0\); \(\log\) denotes natural logarithm. NMI and AMI are defined as
 \begin{align*}
 \operatorname{NMI}(U,V^*)&=\frac{I(U;V^*)}{[H(U)+H(V^*)]/2},\\
 \operatorname{AMI}(U,V^*)&=
@@ -477,9 +519,10 @@ observed row and column margins fixed. NMI lies in \([0,1]\) and rises with
 partition count even under independence, since a finer partition raises
 \(I(U;V^*)\) by chance alone. AMI subtracts that expectation, takes value
 \(0\) in expectation under independence, and so permits comparison across
-settings whose community counts differ \citep{vinh2010information}. Both
-metrics used scikit-learn \citep{pedregosa2011scikitlearn}. Family and clan
-labels entered evaluation only after community detection.
+settings whose community counts differ \citep{vinh2010information}. We computed
+both NMI and AMI using scikit-learn \citep{pedregosa2011scikitlearn}. We stress
+again that family and clan labels entered evaluation only after community
+detection.
 
 \subsection{Reproducibility and figure provenance}
 
@@ -496,11 +539,17 @@ hand.
 
 \section{Results}
 
-Analysis centers around which edge rule yields communities closest to withheld Pfam
-structure. Each Louvain partition was compared separately with family and clan
-assignments. A tested setting is judged by median AMI across
-\PrimaryCollections\ distinct primary collections; NMI shows effect of chance
-correction. Detailed distribution plots use reference condition
+Our analysis centres on which edge rule yields communities closest to withheld
+Pfam structure. Agreement with Pfam labels serves as a proxy, however limited,
+for how well graph structure reflects biological information. We compared each
+Louvain partition separately with family and clan assignments. We evaluate each
+tested setting by median AMI across \PrimaryCollections\ distinct primary
+collections; NMI shows the effect of chance correction. We report medians
+rather than means because both measures are bounded and their replicate
+distributions are asymmetric: several settings concentrate against 0 or 1, and
+some are multimodal (Figs.~\ref{fig:nmi-frequency} and~\ref{fig:ami-frequency}).
+The median is less sensitive to this skew and to outlying replicates.
+Figures report interquartile ranges across collections as error bars. Detailed distribution plots use reference condition
 \((c,f,r)=(4,2,20)\): \ReplicatesPerCondition\ collections, each containing 160
 domains from 8 families.
 
@@ -511,22 +560,26 @@ recovery increased from top-1 to top-10 under both score methods. Top-10 gave
 highest tested family AMI: \BioTopTenAMI\ for Biopython and \BlastTopTenAMI\ for
 BLAST. Corresponding clan AMI was \BioTopTenClanAMI\ and
 \BlastTopTenClanAMI. Biopython percentile 0.90 gave clan AMI
-\BioPercentileNinetyClanAMI, exceeding Biopython top-10 by 0.006; its BLAST
-counterpart gave \BlastPercentileNinetyClanAMI. Top-10 was therefore first or
-within 0.006 of first for both label levels and both score methods.
+\BioPercentileNinetyClanAMI, exceeding Biopython top-10 by
+\TopTenClanAMIGap; its BLAST counterpart gave
+\BlastPercentileNinetyClanAMI. Top-10 was therefore first or within
+\TopTenClanAMIGap\ of first for both label levels and both score methods.
 
 Top-5 supplied a lower-density operating point. Median family AMI was
 \BioTopFiveAMI\ for Biopython and \BlastTopFiveAMI\ for BLAST at densities
 \BioTopFiveDensityPct\% and \BlastTopFiveDensityPct\%. Median clan AMI was
 \BioTopFiveClanAMI\ and \BlastTopFiveClanAMI. Subsequent examples use top-5 to
-retain fewer edges; both median family AMI values exceed 0.91.
+retain fewer edges; the smaller of the two median family AMI values is
+\TopFiveMinFamilyAMI.
 
 \begin{figure}[htbp]
   \centering
   \includegraphics[width=\textwidth]{rule_recovery.png}
   \caption{Median AMI against median realised density across
   \PrimaryCollections\ primary collections. Panels show family and clan
-  recovery. Lines connect parameter values within each method and rule family.}
+  recovery. Lines connect parameter values within each method and rule family.
+  Error bars give interquartile ranges across collections in both coordinates.
+  Marker denotes score method: circle for Biopython, triangle for BLAST.}
   \label{fig:rules}
 \end{figure}
 
@@ -554,6 +607,7 @@ no analytical meaning.
 \end{figure}
 
 \subsection{Effect of sparsity on structure recovery}
+\label{sec:sparsity}
 
 Realised density \(\delta=\lvert E\rvert/P\) reads directly as an edge
 fraction, so \(\delta=0.04\) means 4\% of possible pairs are edges. Target
@@ -573,7 +627,9 @@ across many inferred communities and reduced AMI.
   \includegraphics[width=\textwidth]{rule_topology.png}
   \caption{Median component and community counts against realised density for
   12 graph settings and \ReplicatesPerCondition\ reference-condition
-  collections. Colour denotes rule family; marker denotes score method.}
+  collections. Colour denotes rule family; marker denotes score method, circle
+  for Biopython and triangle for BLAST. Error bars give interquartile ranges
+  across collections.}
   \label{fig:rule-topology}
 \end{figure}
 
@@ -591,7 +647,8 @@ groups, while AMI subtracted expected agreement conditional on group sizes.
 \begin{figure}[htbp]
   \centering
   \includegraphics[width=\textwidth]{metric_comparison.png}
-  \caption{Median NMI and AMI for 12 graph settings in reference condition.
+  \caption{Median NMI and AMI for 12 graph settings in reference condition,
+  with interquartile ranges across collections as error bars.
   Panels separate score method and withheld label level. Shading marks chance
   correction. Prefixes \(p\), \(d\), and \(k\) denote percentile, target
   density, and top-\(k\).}
@@ -649,7 +706,7 @@ with high Biopython scores (Fig.~\ref{fig:score-coverage}, right).
 \end{figure}
 
 Percentile rules retain a fraction of each method's available scores. At
-percentile 0.90, median realised density was
+percentile 0.90, the median realised density was
 \BioPercentileNinetyDensityPct\% for Biopython and
 \BlastPercentileNinetyDensityPct\% for BLAST
 (Fig.~\ref{fig:percentile}). Equal percentile parameters therefore represented
@@ -658,7 +715,8 @@ different edge budgets.
 \begin{figure}[htbp]
   \centering
   \includegraphics[width=\textwidth]{percentile_density_mismatch.png}
-  \caption{Median density, family AMI, and clan AMI under percentile rules.
+  \caption{Median density, family AMI, and clan AMI under percentile rules,
+  with interquartile ranges across collections as error bars.
   Horizontal position is fraction of available scores retained within each
   method. Summaries use \PrimaryCollections\ primary collections.}
   \label{fig:percentile}
@@ -697,7 +755,8 @@ not enter these summaries.
   \centering
   \includegraphics[width=\textwidth]{composition_recovery.png}
   \caption{Median family AMI across \PrimaryConditions\ primary composition
-  conditions under top-5 construction. Colour gives clan count; panels separate
+  conditions under top-5 construction, with interquartile ranges across
+  collections as error bars. Colour gives clan count; panels separate
   score method and families per clan. Lines connect domain counts.}
   \label{fig:composition}
 \end{figure}
@@ -712,20 +771,22 @@ left). Median component count also varied with clan and family counts
   \centering
   \includegraphics[width=\textwidth]{composition_topology.png}
   \caption{Top-5 graph structure across \PrimaryConditions\ primary
-  composition conditions. Rows separate score methods. Colour gives clan
-  count; marker gives families per clan. Lines connect domain counts.}
+  composition conditions, with interquartile ranges across collections as error
+  bars. Rows separate score methods. Colour gives clan
+  count; marker gives families per clan, circle for two and triangle for three.
+  Lines connect domain counts.}
   \label{fig:composition-topology}
 \end{figure}
 
 \subsection{Sensitivity analyses}
 
-Score permutation within each collection preserved score distribution and rule
-parameters while randomising pair identities. In reference condition,
+We permuted scores within each collection, which preserves the score
+distribution and rule parameters while randomising pair identities. In reference condition,
 Biopython top-5 median family AMI changed from \ObservedTopFiveAMI\ to
 \NullTopFiveAMI\ (Fig.~\ref{fig:sensitivity}, left). Positive null NMI
 confirmed chance bias in finite partitions addressed by AMI.
 
-Unweighted Louvain replaced every retained edge weight by one. Reference
+For unweighted Louvain, we replaced every retained edge weight by one. Reference
 Biopython top-5 median family AMI was \UnweightedTopFiveAMI, compared with
 \ObservedTopFiveAMI\ under native weights (Fig.~\ref{fig:sensitivity}, right).
 Selected adjacency therefore retained family agreement after removal of edge
@@ -734,55 +795,73 @@ weight variation for this setting.
 \begin{figure}[htbp]
   \centering
   \includegraphics[width=\textwidth]{sensitivity_checks.png}
-  \caption{Sensitivity to score permutation and community weight.}
+  \caption{Sensitivity to score permutation and community weight. Bars and
+  markers give medians; error bars give interquartile ranges across
+  collections.}
   \label{fig:sensitivity}
 \end{figure}
 \FloatBarrier
 
 \section{Discussion}
 
-Top-\(k\) rules recovered withheld Pfam labels most consistently across tested
-score methods and label levels. Top-10 maximised median family AMI for both
-methods and was within 0.006 of highest clan AMI. Top-5 retained fewer edges
-with median family AMI \BioTopFiveAMI\ for Biopython and \BlastTopFiveAMI\ for
-BLAST. Selection between top-5 and top-10 depends on desired graph sparsity.
+\paragraph{Main finding.}
+We found that top-\(k\) rules, which build a graph by connecting each protein
+domain to the \(k\) domains with which it has the highest alignment scores,
+recovered withheld Pfam labels most consistently across tested score methods
+and label levels. Top-10 maximised median family AMI for both methods and was
+within \TopTenClanAMIGap\ of the highest clan AMI. Top-5 retained fewer edges, with median
+family AMI \BioTopFiveAMI\ for Biopython and \BlastTopFiveAMI\ for BLAST. We
+found that both perform well, so the choice between them depends on the desired
+graph sparsity.
 
-Edge allocation explains much of this result. Sparse global rules produced
-many components; top-\(k\) produced fewer components at similar density because
-each vertex selected local neighbours. Global density alone did not determine
-graph structure.
+\paragraph{Edge allocation.}
+From our follow-up experiments on graph topology (Section~\ref{sec:sparsity}),
+we believe that edge allocation explains much of this result. Sparse global
+rules produced many components, whereas top-\(k\) produced fewer components at
+similar density because each vertex selects local neighbours. Global density
+alone therefore did not determine graph structure.
 
-NMI exceeded AMI under sparse, fragmented settings
-(Figs.~\ref{fig:nmi-frequency} and~\ref{fig:ami-frequency}). AMI subtracts
-expected mutual information conditional on observed group sizes. Comparisons
-across rules and compositions therefore use AMI; NMI supplies an unadjusted
-bounded descriptor.
+\paragraph{Agreement measure.}
+We found that NMI exceeded AMI under sparse, fragmented settings
+(Figs.~\ref{fig:nmi-frequency} and~\ref{fig:ami-frequency}). Because AMI
+subtracts expected mutual information conditional on observed group sizes, we
+used AMI for comparisons across rules and compositions, with NMI as an
+unadjusted bounded descriptor.
 
+\paragraph{Score method.}
 Biopython and BLAST ranks agreed closely among pairs reported by BLAST, while
-BLAST covered \BlastCoveragePct\% of master pairs. Equal percentiles combined
+BLAST covered only \BlastCoveragePct\% of master pairs. Despite this low
+coverage, BLAST top-\(k\) graphs recovered family labels nearly as well as
+exact alignment, since BLAST reports concentrated among the highest-scoring
+pairs (Fig.~\ref{fig:score-coverage}), which are the pairs top-\(k\) rules
+select. Equal percentiles combined
 score method, coverage, and edge-budget effects. Target density removed the
 edge-budget difference; at 2\% density, median absolute family differences were
 \MatchedTwoAbsDeltaNMI\ for NMI and \MatchedTwoAbsDeltaAMI\ for AMI. Agreement
 between methods after density matching supports graph-rule conclusions shared
 by both score systems.
 
+\paragraph{Collection composition.}
 Collection composition changed density, component count, and recovery under a
 fixed top-5 rule. Balanced sampling estimates behaviour across controlled
 mixtures rather than natural Pfam abundance. Replicate variation within each
 condition captures domain and family selection effects for this master panel.
 
-Permutation results show that pair identity contains family information beyond
-score distribution. Under unit weights, family AMI at reference setting was
-\UnweightedTopFiveAMI, compared with \ObservedTopFiveAMI\ under native weights.
-Controls locate observed signal primarily in edge placement for this setting.
+\paragraph{Controls.}
+Our permutation control shows that pair identity carries family information
+beyond the score distribution: permuting scores reduced reference family AMI
+from \ObservedTopFiveAMI\ to \NullTopFiveAMI. With unit weights, family AMI at
+the reference setting was \UnweightedTopFiveAMI, compared with
+\ObservedTopFiveAMI\ under native weights. These controls locate the observed
+signal primarily in edge placement rather than edge weights for this setting.
 
+\paragraph{Limitations and future work.}
 Inference scope remains balanced mixtures from \MasterFamilies\ selected Pfam
 families. Full-length proteins, alternative databases, synthetic evolutionary
 data, and structural labels require separate evaluation. \ExcludedCells\
 saturated design conditions reduced primary factorial design to
 \PrimaryConditions\ conditions. Louvain resolution and stochasticity received
 limited study. DEDAL lacks scaled evidence here.
-
 Future work should repeat sampling across broader Pfam panels, model composition
 effects with hierarchical uncertainty, test graph filtrations across continuous
 edge budgets, and compare community algorithms. These experiments estimate
@@ -790,11 +869,15 @@ stability across panels and graph construction choices.
 
 \section{Conclusion}
 
-Pipeline maps recorded domain collections to pair scores, weighted graphs,
-communities, and auditable agreement measures. Among tested settings, top-\(k\)
-rules recovered withheld Pfam structure most consistently; top-10 maximised
-family AMI and top-5 supplied a sparser alternative with median family AMI
-above 0.91 under both score methods. AMI corrected
+In this project, we studied sequence-similarity networks, graphs built from
+protein sequences using pairwise alignment scores. Our goal was to develop and
+test a framework that evaluates how methodological choices in building SSNs
+affect the biological relevance of the resulting networks. We built a pipeline
+that maps recorded domain collections to pair scores, weighted graphs,
+communities, and auditable agreement measures. Among tested settings, we found
+that top-\(k\) rules recovered withheld Pfam structure most consistently; top-10 maximised
+family AMI and top-5 supplied a sparser alternative with median family AMI of
+at least \TopFiveMinFamilyAMI\ under both score methods. AMI corrected
 chance agreement caused by variable community counts. Biopython and BLAST
 produced similar recovery after edge budgets were matched, while equal
 percentiles produced different graph densities. Sampling frame, score coverage,

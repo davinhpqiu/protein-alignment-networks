@@ -25,5 +25,6 @@ Check author names, title, venue, year, pages, DOI, and URL against the
 publisher or another authoritative record. Do not store copyrighted paper PDFs
 in Git unless their licence clearly permits redistribution.
 
-The original proposal remains at the repository root. Part of it is explicitly
-confidential, so it is ignored by Git and must not be redistributed.
+Original proposals are stored under `local/project/proposals/`. Part of this
+material is confidential; `local/` is excluded from Git and must not be
+redistributed.

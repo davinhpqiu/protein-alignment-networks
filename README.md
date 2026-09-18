@@ -92,8 +92,22 @@ recorded outputs.
 - `references/references.bib`: the public canonical citation database; local
   literature-reading notes stay alongside it but are not published.
 
-The original proposal, meeting notes, and `docs/PROJECT.md` are retained as
-local research records and intentionally not published to GitHub.
+Original proposals, meeting notes, feedback, audits, and supplied templates
+are stored under `local/` and intentionally excluded from GitHub.
+
+## Project structure
+
+- `src/protein_alignment_networks/`: reusable, tested library code.
+- `scripts/`: reproducible data, experiment, and report entry points.
+- `notebooks/`: numbered research narrative.
+- `data/`: downloaded and processed data, excluded from Git.
+- `outputs/`: generated analysis tables, graphs, and figures.
+- `report/`: report source, versioned figures, references, and release PDF.
+- `references/`: canonical BibTeX database and local literature records.
+- `docs/`: public method-specific guidance.
+- `tests/`: automated tests.
+- `build/report/`: disposable LaTeX compilation output.
+- `local/`: private project records and supplied material, excluded from Git.
 
 ## Prepare the pilot dataset
 

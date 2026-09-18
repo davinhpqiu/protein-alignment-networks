@@ -98,10 +98,30 @@ def quantile_summary(results: pd.DataFrame, groups: list[str]) -> pd.DataFrame:
             lower_quartile_nmi=("nmi", lambda values: values.quantile(0.25)),
             upper_quartile_nmi=("nmi", lambda values: values.quantile(0.75)),
             median_ami=("ami", "median"),
+            lower_quartile_ami=("ami", lambda values: values.quantile(0.25)),
+            upper_quartile_ami=("ami", lambda values: values.quantile(0.75)),
             median_density=("density", "median"),
+            lower_quartile_density=("density", lambda values: values.quantile(0.25)),
+            upper_quartile_density=("density", lambda values: values.quantile(0.75)),
             median_edges=("edges", "median"),
             median_components=("connected_components", "median"),
+            lower_quartile_components=(
+                "connected_components",
+                lambda values: values.quantile(0.25),
+            ),
+            upper_quartile_components=(
+                "connected_components",
+                lambda values: values.quantile(0.75),
+            ),
             median_communities=("inferred_community_count", "median"),
+            lower_quartile_communities=(
+                "inferred_community_count",
+                lambda values: values.quantile(0.25),
+            ),
+            upper_quartile_communities=(
+                "inferred_community_count",
+                lambda values: values.quantile(0.75),
+            ),
         )
         .sort_values(groups, ignore_index=True)
     )
