@@ -330,24 +330,6 @@ those nominations. This scales locally with the collection, but `k` remains an
 explicit sensitivity parameter and the realised density can differ by method;
 only `target_density` is used for formal matched-edge-budget comparisons.
 
-## Repository map
-
-```text
-data/                         Local data, separated by processing stage
-docs/                         Project overview and method-specific guides
-notebooks/                    Numbered, reproducible analyses
-outputs/                      Generated figures, tables, and graph files
-scripts/                      Reproducible data-preparation and method workers
-src/protein_alignment_networks/
-                              Reusable, tested Python code
-tests/                        Automated correctness checks
-```
-
-`data/raw/` and `data/external/` are treated as immutable inputs. Derived data
-belongs in `data/interim/` or `data/processed/`; figures and result files belong
-under `outputs/`. Large/generated files are ignored by Git, while the folder
-guides remain tracked.
-
 ## Working conventions
 
 - Put exploratory work in a numbered notebook, but move reusable logic into

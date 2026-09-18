@@ -36,17 +36,15 @@ data/raw/*
 data/external/*
 data/interim/*
 data/processed/*
-!data/**/.gitkeep
 !data/**/README.md
 outputs/figures/*
 outputs/tables/*
 outputs/graphs/*
-!outputs/**/.gitkeep
 !outputs/**/README.md
 
 # Downloaded third-party research code and pretrained model artefacts
-external/google-research/
-models/dedal/
+external/
+models/
 
 # LaTeX build artefacts
 *.aux
